@@ -42,11 +42,25 @@ export const getServiceByIdController = async (req, res) => {
 
 export const getServiceByCategoryIdController = async (req, res) => {
   try {
-    const service = await getServiceByCategoryId(req.params.categoryId);
-    if (!service) {
-      return generateResponse(res, 404, false, "Service not found");
+    const services = await getServiceByCategoryId(req.params.categoryId);
+    if (!services || services.length === 0) {
+      return generateResponse(res, 200, true, "Service fetched successfully", []);
     }
-    generateResponse(res, 200, true, "Service fetched successfully", service);
+    
+    // Convert to plain objects to remove Mongoose metadata
+    const cleanServices = services.map(service => ({
+      _id: service._id.toString(),
+      name: service.name,
+      category: service.category,
+      availableDays: service.availableDays,
+      timeRange: service.timeRange,
+      slotDurationHours: service.slotDurationHours,
+      pricePerSlot: service.pricePerSlot,
+      maxPeopleAllowed: service.maxPeopleAllowed,
+      description: service.description
+    }));
+    
+    generateResponse(res, 200, true, "Service fetched successfully", cleanServices);
   } catch (error) {
     generateResponse(res, 500, false, "Failed to fetch service", error.message);
   }

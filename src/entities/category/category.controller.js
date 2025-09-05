@@ -6,7 +6,15 @@ import { cloudinaryUpload } from "../../lib/cloudinaryUpload.js";
 export const getAllCategories = async (req, res) => {
   try {
     const categories = await categoryService.getAllCategoriesService();
-    generateResponse(res, 200, true, "Categories fetched successfully", categories);
+    // Convert to plain objects to remove Mongoose metadata
+    const cleanCategories = categories.map(category => ({
+      _id: category._id.toString(),
+      name: category.name,
+      image: category.image,
+      createdAt: category.createdAt,
+      updatedAt: category.updatedAt
+    }));
+    generateResponse(res, 200, true, "Categories fetched successfully", cleanCategories);
   } catch (error) {
     generateResponse(res, 500, false, "Failed to fetch categories", error.message);
   }

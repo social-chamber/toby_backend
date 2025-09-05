@@ -3,7 +3,7 @@ import mongoose from "mongoose";
 
 
 export const getAllCategoriesService = async () => {
-  return await Category.find().sort({ createdAt: -1 }); 
+  return await Category.find().sort({ createdAt: -1 }).lean(); 
 };
 
 

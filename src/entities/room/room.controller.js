@@ -32,7 +32,18 @@ export const createRoom = async (req, res) => {
 export const getAllRooms = async (req, res) => {
   try {
     const rooms = await roomService.getAllRoomsService();
-    generateResponse(res, 200, true, "Rooms fetched successfully", rooms);
+    // Convert to plain objects to remove Mongoose metadata
+    const cleanRooms = rooms.map(room => ({
+      _id: room._id.toString(),
+      title: room.title,
+      image: room.image,
+      category: room.category,
+      maxCapacity: room.maxCapacity,
+      status: room.status,
+      createdAt: room.createdAt,
+      updatedAt: room.updatedAt
+    }));
+    generateResponse(res, 200, true, "Rooms fetched successfully", cleanRooms);
   } catch (error) {
     generateResponse(res, 500, false, "Failed to fetch rooms", error.message);
   }

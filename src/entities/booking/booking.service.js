@@ -22,7 +22,6 @@ export const createBookingService = async (data) => {
     if (isNaN(bookingDate.getTime())) throw new Error('Invalid date');
 
     const service = await Service.findById(serviceId);
-    console.log(service);
     if (!service) throw new Error('Service not found');
 // test12
 // STEP 1: Check if selected slots are still available
@@ -291,10 +290,10 @@ export const checkAvailabilityService = async (date, serviceId,roomId) => {
     const endOfDay = new Date(date);
     endOfDay.setHours(23, 59, 59, 999);
 
+    // Prevent cross-category clashes by checking all bookings for the same room on the date
     const existingBookings = await Booking.find({
         date: { $gte: startOfDay, $lte: endOfDay },
-        room:roomId,
-        service: serviceId,
+        room: roomId,
         status: { $in: ['pending', 'confirmed'] }
     });
     
