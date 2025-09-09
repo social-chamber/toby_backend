@@ -61,13 +61,14 @@ for (let requestedSlot of timeSlots) {
         const promo = await PromoCode.findOne({ code: promoCode, active: true });
         if (!promo) throw new Error('Invalid promo code');
 
-        if (promo.expiresAt && promo.expiresAt < new Date()) {
+        if (promo.expiryDate && promo.expiryDate < new Date()) {
             throw new Error('Promo code expired');
         }
 
-        if (promo.discountType === 'Percentage') {
+        const discountType = typeof promo.discountType === 'string' ? promo.discountType.toLowerCase() : '';
+        if (discountType === 'percentage') {
             total = total - total * (promo.discountValue / 100);
-        } else if (promo.discountType === 'fixed') {
+        } else if (discountType === 'fixed') {
             total = total - promo.discountValue;
         }
 
@@ -171,8 +172,7 @@ export const getAllBookings = async ({ startDate, endDate, status } = {}, { page
       query.date.$lte = end;
     }
   }
-  query.status = { $ne: "pending" }; // Exclude deleted bookings
-  query.paymentStatus = { $ne: "pending" }; // Exclude deleted bookings
+  // By default include all statuses so admins can see newly created (pending) bookings too
 
   // Handle status filtering
   if (status) {

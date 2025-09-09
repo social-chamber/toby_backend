@@ -54,7 +54,7 @@ const bookingSchema = new Schema({
         type: Date,
         default: null,
     },
-    paymentIntentId:{ String},
+    paymentIntentId: { type: String, default: null },
     expiresAt: {
         type: Date,
         default: null,

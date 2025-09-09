@@ -1,5 +1,6 @@
 import sendEmail from "../../lib/sendEmail.js";
 import { generateResponse } from "../../lib/responseFormate.js";
+import { handleControllerError } from "../../lib/handleError.js";
 
 export const sendEmailController = async (req, res) => {
   const { email, subject, body } = req.body;
@@ -32,8 +33,6 @@ export const sendEmailController = async (req, res) => {
       });
     }
   } catch (error) {
-    return generateResponse(res, 500, "error", "An unexpected error occurred while sending email", {
-      error: error.message,
-    });
+    handleControllerError(res, error, "An unexpected error occurred while sending email");
   }
 };

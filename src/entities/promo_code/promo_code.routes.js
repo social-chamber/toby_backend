@@ -7,6 +7,7 @@ import {
   updatePromoCode,
   applyPromoCode,
   sendBulkEmailController,
+  getPromoEmailRecipients,
 } from "./promo_code.controller.js";
 import { adminMiddleware, verifyToken } from "../../core/middlewares/authMiddleware.js";
 
@@ -24,6 +25,7 @@ router.put("/:id", verifyToken, adminMiddleware, updatePromoCode);
 router.delete("/:id", verifyToken, adminMiddleware, deletePromoCode);
 
 // email
-router.post('/send', sendBulkEmailController);
+router.get('/recipients', verifyToken, adminMiddleware, getPromoEmailRecipients);
+router.post('/send', verifyToken, adminMiddleware, sendBulkEmailController);
 
 export default router;

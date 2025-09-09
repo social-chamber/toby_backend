@@ -3,7 +3,19 @@ import { getDashboardData } from "./dashboard.service.js";
 
 export const dashboard = async(req,res)=>{
     try {
-        const { startDate, endDate } = req.query;
+        let { startDate, endDate } = req.query;
+
+        // Default to today's range if not provided
+        if (!startDate || !endDate) {
+            const now = new Date();
+            const start = new Date(now);
+            start.setHours(0, 0, 0, 0);
+            const end = new Date(now);
+            end.setHours(23, 59, 59, 999);
+            startDate = start.toISOString();
+            endDate = end.toISOString();
+        }
+
         const dashboardData = await getDashboardData(startDate, endDate);
         generateResponse(res, 200, true, "Dashboard data fetched successfully", dashboardData);
     } catch (error) {

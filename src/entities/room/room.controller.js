@@ -1,5 +1,6 @@
 import * as roomService from "./room.service.js";
 import { generateResponse } from "../../lib/responseFormate.js";
+import { handleControllerError } from "../../lib/handleError.js";
 import { cloudinaryUpload } from "../../lib/cloudinaryUpload.js";
 
 
@@ -24,7 +25,7 @@ export const createRoom = async (req, res) => {
 
     generateResponse(res, 201, true, "Room created successfully", room);
   } catch (error) {
-    generateResponse(res, 400, false, "Failed to create room", error.message);
+    handleControllerError(res, error, "Failed to create room");
   }
 };
 
@@ -45,7 +46,7 @@ export const getAllRooms = async (req, res) => {
     }));
     generateResponse(res, 200, true, "Rooms fetched successfully", cleanRooms);
   } catch (error) {
-    generateResponse(res, 500, false, "Failed to fetch rooms", error.message);
+    handleControllerError(res, error, "Failed to fetch rooms");
   }
 };
 
@@ -58,7 +59,7 @@ export const getRoomById = async (req, res) => {
     }
     generateResponse(res, 200, true, "Room fetched successfully", room);
   } catch (error) {
-    generateResponse(res, 500, false, "Failed to fetch room", error.message);
+    handleControllerError(res, error, "Failed to fetch room");
   }
 };
 
@@ -86,7 +87,7 @@ export const updateRoom = async (req, res) => {
 
     generateResponse(res, 200, true, "Room updated successfully", updatedRoom);
   } catch (error) {
-    generateResponse(res, 400, false, "Failed to update room", error.message);
+    handleControllerError(res, error, "Failed to update room");
   }
 };
 
@@ -99,6 +100,6 @@ export const deleteRoom = async (req, res) => {
     }
     generateResponse(res, 200, true, "Room deleted successfully");
   } catch (error) {
-    generateResponse(res, 400, false, "Failed to delete room", error.message);
+    handleControllerError(res, error, "Failed to delete room");
   }
 };

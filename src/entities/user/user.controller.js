@@ -1,4 +1,5 @@
 import { generateResponse } from "../../lib/responseFormate.js";
+import { handleControllerError } from "../../lib/handleError.js";
 import { 
   getAllUsers,
   getAllAdmins,
@@ -28,7 +29,7 @@ export const getAllUsersController = async (req, res) => {
     const { users, paginationInfo } = await getAllUsers({ page, limit, search, date });
     generateResponse(res, 200, true, 'Users fetched successfully', { users, paginationInfo });
   } catch (error) {
-    generateResponse(res, 500, false, 'Failed to fetch users', null);
+    handleControllerError(res, error, 'Failed to fetch users');
   }
 };
 
@@ -39,7 +40,7 @@ export const getAllAdminsController = async (req, res) => {
     const { admins, paginationInfo } = await getAllAdmins({ page, limit, search, date });
     generateResponse(res, 200, true, 'Admins fetched successfully', { admins, paginationInfo });
   } catch (error) {
-    generateResponse(res, 500, false, 'Failed to fetch admins', null);
+    handleControllerError(res, error, 'Failed to fetch admins');
   }
 };
 
@@ -50,7 +51,7 @@ export const getAllSelleresController = async (req, res) => {
     const { sellers, paginationInfo } = await getAllSellers({ page, limit, search, date });
     generateResponse(res, 200, true, 'Seller fetched successfully', { sellers, paginationInfo });
   } catch (error) {
-    generateResponse(res, 500, false, 'Failed to fetch seller', null);
+    handleControllerError(res, error, 'Failed to fetch seller');
   }
 };
 
@@ -61,7 +62,7 @@ export const getUserByIdController = async (req, res) => {
     const user = await getUserById(id);
     generateResponse(res, 200, true, 'User fetched successfully', user);
   } catch (error) {
-    generateResponse(res, 500, false, 'Failed to fetch user', null);
+    handleControllerError(res, error, 'Failed to fetch user');
   }
 };
 
@@ -72,7 +73,7 @@ export const updateUserController = async (req, res) => {
     const updatedUser = await updateUser({ id, ...req.body });
     generateResponse(res, 200, true, 'User updated successfully', updatedUser);
   } catch (error) {
-    generateResponse(res, 500, false, 'Failed to update user', null);
+    handleControllerError(res, error, 'Failed to update user');
   }
 };
 
@@ -83,7 +84,7 @@ export const deleteUserController = async (req, res) => {
     await deleteUser(id);
     generateResponse(res, 200, true, 'User deleted successfully', null);
   } catch (error) {
-    generateResponse(res, 500, false, 'Failed to delete user', null);
+    handleControllerError(res, error, 'Failed to delete user');
   }
 };
 
@@ -100,10 +101,7 @@ export const createAvatarController = async (req, res) => {
     const user = await createAvatarProfile(id, req.files);
     generateResponse(res, 200, true, 'Avatar uploaded successfully', user);
   } catch (error) {
-    console.error(error);
-    const status = error.message.includes('not found') ? 404 : 500;
-    const message = status === 500 ? 'Failed to upload avatar' : error.message;
-    generateResponse(res, status, false, message);
+    handleControllerError(res, error, 'Failed to upload avatar');
   }
 };
 
@@ -114,8 +112,7 @@ export const updateAvatarProfileController = async (req, res) => {
     const user = await updateAvatarProfile(id, req.files);
     generateResponse(res, 200, true, 'Avatar updated successfully', user); 
   } catch (error) {
-    console.error(error);
-    generateResponse(res, 500, false, 'Failed to update avatar', error.message);
+    handleControllerError(res, error, 'Failed to update avatar');
   }
 };
 
@@ -126,8 +123,7 @@ export const deleteAvatarController = async (req, res) => {
     const updatedUser = await deleteAvatarProfile(id);
     generateResponse(res, 200, true, 'Avatar deleted successfully', updatedUser);
   } catch (error) {
-    console.error(error);
-    generateResponse(res, 500, false, 'Failed to delete avatar', error.message);
+    handleControllerError(res, error, 'Failed to delete avatar');
   }
 };
 
@@ -138,8 +134,7 @@ export const createMultipleAvatarController = async (req, res) => {
     const user = await createMultipleAvatar(id, req.files);
     generateResponse(res, 200, true, 'Multiple avatars uploaded successfully', user);
   } catch (error) {
-    console.error(error);
-    generateResponse(res, 500, false, 'Failed to upload multiple avatars', error.message);
+    handleControllerError(res, error, 'Failed to upload multiple avatars');
   }
 };
 
@@ -150,8 +145,7 @@ export const updateMultipleAvatarController = async (req, res) => {
     const user = await updateMultipleAvatar(id, req.files);
     generateResponse(res, 200, true, 'Multiple avatars updated successfully', user);
   } catch (error) {
-    console.error(error);
-    generateResponse(res, 500, false, 'Failed to update multiple avatars', error.message);
+    handleControllerError(res, error, 'Failed to update multiple avatars');
   }
 };
 
@@ -162,8 +156,7 @@ export const deleteMultipleAvatarController = async (req, res) => {
     const user = await deleteMultipleAvatar(id);
     generateResponse(res, 200, true, 'Multiple avatars deleted successfully', user);
   } catch (error) {
-    console.error(error);
-    generateResponse(res, 500, false, 'Failed to delete multiple avatars', error.message);
+    handleControllerError(res, error, 'Failed to delete multiple avatars');
   }
 };
 
@@ -181,8 +174,7 @@ export const createUserfileController = async (req, res) => {
 
     return generateResponse(res, 200, true, 'File uploaded successfully', result);
   } catch (error) {
-    console.error(error);
-    return generateResponse(res, 500, false, 'File upload failed', error.message);
+    handleControllerError(res, error, 'File upload failed');
   }
 };
 
@@ -199,8 +191,7 @@ export const updateUserfileController = async (req, res) => {
 
     return generateResponse(res, 200, true, 'File updated successfully', result);
   } catch (error) {
-    console.error(error);
-    return generateResponse(res, 500, false, 'Failed to update file', error.message);
+    handleControllerError(res, error, 'Failed to update file');
   }
 };
 
@@ -211,7 +202,6 @@ export const deletefileController = async (req, res) => {
 
     return generateResponse(res, 200, true, 'File deleted successfully', result);
   } catch (error) {
-    console.error(error);
-    return generateResponse(res, 500, false, 'Failed to delete file', error.message);
+    handleControllerError(res, error, 'Failed to delete file');
   }
 };

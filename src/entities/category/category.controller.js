@@ -1,6 +1,7 @@
 import * as categoryService from "./category.service.js";
 import { generateResponse } from "../../lib/responseFormate.js";
 import { cloudinaryUpload } from "../../lib/cloudinaryUpload.js";
+import { handleControllerError } from "../../lib/handleError.js";
 
 
 export const getAllCategories = async (req, res) => {
@@ -16,7 +17,7 @@ export const getAllCategories = async (req, res) => {
     }));
     generateResponse(res, 200, true, "Categories fetched successfully", cleanCategories);
   } catch (error) {
-    generateResponse(res, 500, false, "Failed to fetch categories", error.message);
+    handleControllerError(res, error, "Failed to fetch categories");
   }
 };
 
@@ -29,7 +30,7 @@ export const getCategoryById = async (req, res) => {
     }
     generateResponse(res, 200, true, "Category fetched successfully", category);
   } catch (error) {
-    generateResponse(res, 500, false, "Failed to fetch category", error.message);
+    handleControllerError(res, error, "Failed to fetch category");
   }
 };
 
@@ -55,7 +56,7 @@ export const createCategory = async (req, res) => {
 
     generateResponse(res, 201, true, "Category created successfully", category);
   } catch (error) {
-    generateResponse(res, 400, false, "Failed to create category", error.message);
+    handleControllerError(res, error, "Failed to create category");
   }
 };
 
@@ -81,7 +82,7 @@ export const updateCategory = async (req, res) => {
 
     generateResponse(res, 200, true, "Category updated successfully", updatedCategory);
   } catch (error) {
-    generateResponse(res, 400, false, "Failed to update category", error.message);
+    handleControllerError(res, error, "Failed to update category");
   }
 };
 
@@ -94,7 +95,7 @@ export const deleteCategory = async (req, res) => {
     }
     generateResponse(res, 200, true, "Category deleted successfully");
   } catch (error) {
-    generateResponse(res, 400, false, "Failed to delete category", error.message);
+    handleControllerError(res, error, "Failed to delete category");
   }
 };
 

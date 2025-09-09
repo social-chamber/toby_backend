@@ -48,7 +48,7 @@ export const payment = async (req, res) => {
       price: total,
       stripeSessionId: session.id,
       paymentIntentId: session.payment_intent,
-      status: 'pending',
+      paymentStatus: 'pending',
     });
     await newPayment.save();
 
@@ -62,7 +62,11 @@ export const payment = async (req, res) => {
       url: session.url
     });
   } catch (error) {
-  generateResponse(res, 500, false, 'Payment session creation failed', error.message);
+  const msg = (error && error.message) ? String(error.message) : 'Payment session creation failed';
+  const isClientError = /not found|invalid|required|missing/i.test(msg);
+  const statusCode = isClientError ? 400 : 500;
+  const message = isClientError ? msg : 'Payment session creation failed';
+  generateResponse(res, statusCode, false, message, null);
   }
 };
 
@@ -94,8 +98,11 @@ export const getBookingDetails = async (req, res) => {
 
     return generateResponse(res, 200, true, 'Booking details fetched successfully', booking);
   } catch (error) {
-    console.error('Error fetching booking:', error.message);
-    return generateResponse(res, 500, false, 'Internal Server Error', error.message);
+    const msg = (error && error.message) ? String(error.message) : 'Internal Server Error';
+    const isClientError = /not found|invalid|required|missing/i.test(msg);
+    const statusCode = isClientError ? 404 : 500;
+    const message = isClientError ? msg : 'Internal Server Error';
+    return generateResponse(res, statusCode, false, message, null);
   }
 };
 

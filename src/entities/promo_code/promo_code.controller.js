@@ -13,13 +13,25 @@ import User from "../auth/auth.model.js";
 import bookingModel from "../booking/booking.model.js";
 
 
+export const getPromoEmailRecipients = async (req, res) => {
+  try {
+    const distinctEmails = await bookingModel.distinct('user.email');
+    const emails = distinctEmails.filter(Boolean).sort();
+    generateResponse(res, 200, true, "Fetched promo email recipients", { emails, total: emails.length });
+  } catch (error) {
+    generateResponse(res, 500, false, "Failed to fetch recipients", error.message);
+  }
+}
+
 export const createPromoCode = async (req, res) => {
   try {
     const data = { ...req.body, createdBy: req.user._id };
     const promoCode = await createPromoCodeService(data);
     generateResponse(res, 201, true, "Promo code created successfully", promoCode);
   } catch (error) {
-    generateResponse(res, 400, false, "Failed to create promo code", error.message);
+    const msg = error?.message || 'Failed to create promo code';
+    const isClientError = /exists|invalid|required|usage|future|limit/i.test(msg);
+    generateResponse(res, isClientError ? 400 : 500, false, msg, null);
   }
 };
 
@@ -35,7 +47,8 @@ export const getAllPromoCodes = async (req, res) => {
 
     generateResponse(res, 200, true, "Fetched promo codes", { data, pagination });
   } catch (error) {
-    generateResponse(res, 500, false, "Failed to fetch promo codes", error.message);
+    const msg = error?.message || 'Failed to fetch promo codes';
+    generateResponse(res, 500, false, msg, null);
   }
 };
 
@@ -46,7 +59,9 @@ export const getPromoCodeById = async (req, res) => {
     if (!code) return generateResponse(res, 404, false, "Promo code not found");
     generateResponse(res, 200, true, "Fetched promo code", code);
   } catch (error) {
-    generateResponse(res, 500, false, "Failed to fetch promo code", error.message);
+    const msg = error?.message || 'Failed to fetch promo code';
+    const isClientError = /not found|invalid/i.test(msg);
+    generateResponse(res, isClientError ? 404 : 500, false, msg, null);
   }
 };
 
@@ -56,7 +71,9 @@ export const updatePromoCode = async (req, res) => {
     const updated = await updatePromoCodeService(req.params.id, req.body);
     generateResponse(res, 200, true, "Promo code updated successfully", updated);
   } catch (error) {
-    generateResponse(res, 400, false, "Failed to update promo code", error.message);
+    const msg = error?.message || 'Failed to update promo code';
+    const isClientError = /not found|invalid|exists|limit|future/i.test(msg);
+    generateResponse(res, isClientError ? 400 : 500, false, msg, null);
   }
 };
 
@@ -66,7 +83,9 @@ export const deletePromoCode = async (req, res) => {
     const deleted = await deletePromoCodeService(req.params.id);
     generateResponse(res, 200, true, "Promo code deleted successfully", deleted);
   } catch (error) {
-    generateResponse(res, 400, false, "Failed to delete promo code", error.message);
+    const msg = error?.message || 'Failed to delete promo code';
+    const isClientError = /not found/i.test(msg);
+    generateResponse(res, isClientError ? 404 : 500, false, msg, null);
   }
 };
 
@@ -77,13 +96,15 @@ export const applyPromoCode = async (req, res) => {
     const promo = await applyPromoCodeService(code);
     generateResponse(res, 200, true, "Promo code applied successfully", promo);
   } catch (error) {
-    generateResponse(res, 400, false, "Failed to apply promo code", error.message);
+    const msg = error?.message || 'Failed to apply promo code';
+    const isClientError = /not found|inactive|expired|limit/i.test(msg);
+    generateResponse(res, isClientError ? 400 : 500, false, msg, null);
   }
 };
 
 
 export const sendBulkEmailController = async (req, res) => {
-  const { subject, body, promoCode } = req.body;
+  const { subject, body, promoCode, recipients } = req.body;
 
   if (!subject || !body || !promoCode) {
     return generateResponse(
@@ -96,9 +117,14 @@ export const sendBulkEmailController = async (req, res) => {
   }
 
   try {
-    const users = await bookingModel.find({}, "user.email"); 
-    if (!users.length) {
-      return generateResponse(res, 404, "fail", "No booking found.", null);
+    // Accept explicit recipients, otherwise fallback to distinct emails from bookings
+    let targetEmails = Array.isArray(recipients) && recipients.length > 0
+      ? recipients
+      : await bookingModel.distinct('user.email');
+
+    targetEmails = targetEmails.filter(Boolean);
+    if (!targetEmails.length) {
+      return generateResponse(res, 404, "fail", "No recipients found.", null);
     }
 
     const html = `
@@ -112,33 +138,23 @@ export const sendBulkEmailController = async (req, res) => {
     `;
 
     // Send emails one by one (or you can use Promise.all for parallel sending)
-    const results = await Promise.all(
-      users.map((bookingModel) =>
-        sendEmail({
-          to:  bookingModel.user?.email,
-          subject,
-          html,
-        })
-      )
+    const sendJobs = targetEmails.map((email) =>
+      sendEmail({ to: email, subject, html })
     );
+    const results = await Promise.all(sendJobs);
 
     const successCount = results.filter((r) => r.success).length;
     const failCount = results.length - successCount;
 
     return generateResponse(res, 200, "success", "Bulk email send process completed", {
-      total: users.length,
+      total: targetEmails.length,
       success: successCount,
       failed: failCount,
     });
   } catch (error) {
-    console.error("Bulk email error:", error);
-    return generateResponse(
-      res,
-      500,
-      "error",
-      "An unexpected error occurred while sending bulk emails",
-      { error: error.message }
-    );
+    const msg = error?.message || 'An unexpected error occurred while sending bulk emails';
+    const isClientError = /no recipients|required/i.test(msg);
+    return generateResponse(res, isClientError ? 400 : 500, "error", msg, null);
   }
 };
 

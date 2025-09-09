@@ -47,9 +47,10 @@ export function ensureAbsoluteUrl(url) {
  */
 export function isValidCloudinaryUrl(url) {
   if (!url || typeof url !== 'string') return false;
-  
+
   // Check if it's a valid Cloudinary URL pattern
-  const cloudinaryPattern = /^https?:\/\/res\.cloudinary\.com\/[^\/]+\/image\/upload\/[^\/]+\/[^\/]+$/;
+  // Removed unnecessary escape characters from the regex
+  const cloudinaryPattern = /^https?:\/\/res\.cloudinary\.com\/[^/]+\/image\/upload\/[^/]+\/[^/]+$/;
   return cloudinaryPattern.test(url);
 }
 
@@ -58,40 +59,66 @@ export function isValidCloudinaryUrl(url) {
  * @param {any} data - The data to process
  * @returns {any} - The processed data with cleaned URLs
  */
-export function cleanUrlsInData(data) {
-  if (!data) return data;
-  
+export function cleanUrlsInData(data, seen) {
+  if (data == null) return data;
+
+  // Strings: clean and return
   if (typeof data === 'string') {
     return cleanDuplicateExtensions(data);
   }
-  
-  if (Array.isArray(data)) {
-    return data.map(item => cleanUrlsInData(item));
+
+  // Primitives: return as-is
+  if (typeof data !== 'object') return data;
+
+  // Initialize WeakSet for cycle detection
+  const visited = seen || new WeakSet();
+  if (visited.has(data)) return data;
+
+  // Skip special object types that shouldn't be traversed
+  if (data instanceof Date || data instanceof RegExp || (typeof Buffer !== 'undefined' && Buffer.isBuffer && Buffer.isBuffer(data))) {
+    return data;
   }
-  
-  if (typeof data === 'object') {
-    const cleaned = {};
-    for (const [key, value] of Object.entries(data)) {
-      // Clean URLs in common image/video fields
-      if (['image', 'thumbnail', 'avatar', 'url', 'video'].includes(key)) {
-        if (typeof value === 'string') {
-          cleaned[key] = cleanDuplicateExtensions(value);
-        } else if (value && typeof value === 'object' && value.url) {
-          cleaned[key] = {
-            ...value,
-            url: cleanDuplicateExtensions(value.url)
-          };
-        } else {
-          cleaned[key] = value;
-        }
-      } else {
-        cleaned[key] = cleanUrlsInData(value);
-      }
+
+  // Handle Mongoose documents safely by converting to plain object when possible
+  const isMongooseDoc = !!(data && (data.$__ || (data.constructor && data.constructor.name === 'model')));
+  if (isMongooseDoc) {
+    try {
+      const plain = typeof data.toObject === 'function' ? data.toObject({ getters: false, virtuals: false }) : data;
+      return cleanUrlsInData(plain, visited);
+    } catch {
+      return data;
     }
-    return cleaned;
   }
-  
-  return data;
+
+  // Arrays
+  if (Array.isArray(data)) {
+    visited.add(data);
+    return data.map(item => cleanUrlsInData(item, visited));
+  }
+
+  // Only traverse plain objects
+  const proto = Object.getPrototypeOf(data);
+  const isPlainObject = proto === Object.prototype || proto === null;
+  if (!isPlainObject) {
+    return data;
+  }
+
+  visited.add(data);
+  const cleaned = {};
+  for (const [key, value] of Object.entries(data)) {
+    if (['image', 'thumbnail', 'avatar', 'url', 'video'].includes(key)) {
+      if (typeof value === 'string') {
+        cleaned[key] = cleanDuplicateExtensions(value);
+      } else if (value && typeof value === 'object' && 'url' in value && typeof value.url === 'string') {
+        cleaned[key] = { ...value, url: cleanDuplicateExtensions(value.url) };
+      } else {
+        cleaned[key] = value;
+      }
+    } else {
+      cleaned[key] = cleanUrlsInData(value, visited);
+    }
+  }
+  return cleaned;
 }
 
 /**

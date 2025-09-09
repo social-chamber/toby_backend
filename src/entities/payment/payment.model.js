@@ -24,7 +24,7 @@ const paymentSchema = new Schema({
     transactionId: {
         type: String,
     },
-    paymentIntentId:{ String},
+    paymentIntentId: { type: String },
     createdAt: {
         type: Date,
         default: Date.now,

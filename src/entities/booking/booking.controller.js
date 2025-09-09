@@ -1,4 +1,6 @@
 import { generateResponse } from '../../lib/responseFormate.js';
+import sendEmail from '../../lib/sendEmail.js';
+import bookingConfirmationTemplate from '../../lib/payment_success_template.js';
 import { checkAvailabilityService, createBookingService } from './booking.service.js';
 import Booking from './booking.model.js';
 import * as bookingService from './booking.service.js';
@@ -48,12 +50,56 @@ export const createBookingController = async (req, res) => {
       booking.status = "confirmed" ,
       booking.paymentStatus = "paid"
       await booking.save();
+
+      // Send confirmation email to customer for manual booking
+      try {
+        const formatDate = (date) => {
+          const d = new Date(date);
+          const day = String(d.getDate()).padStart(2, '0');
+          const month = String(d.getMonth() + 1).padStart(2, '0');
+          const year = d.getFullYear();
+          return `${day}/${month}/${year}`;
+        };
+
+        const emailHtml = bookingConfirmationTemplate({
+          name: `${booking.user.firstName} ${booking.user.lastName}`,
+          email: booking.user.email,
+          category: booking?.service?.category?.name || '',
+          room: booking?.room?.title || '',
+          service: booking?.service?.name || '',
+          time: booking.timeSlots,
+          bookingId: booking._id,
+          date: formatDate(booking.date)
+        });
+
+        await sendEmail({
+          to: booking.user.email,
+          subject: 'Your Booking Confirmation',
+          html: emailHtml,
+        });
+      } catch (e) {
+        console.error('Manual booking confirmation email failed:', e?.message || e);
+      }
     }
 
     generateResponse(res, 201, true, "Booking created successfully", booking);
   } catch (error) {
     console.error("Create Booking Error:", error);
-    generateResponse(res, 500, false, "Booking failed", error.message);
+
+    const msg = (error && error.message) ? String(error.message) : "Booking failed";
+    const isClientError = (
+      /invalid/i.test(msg) ||
+      /expired/i.test(msg) ||
+      /not found/i.test(msg) ||
+      /no longer available/i.test(msg) ||
+      /missing/i.test(msg) ||
+      /required/i.test(msg)
+    );
+
+    const statusCode = isClientError ? 400 : 500;
+    const message = isClientError ? msg : "Booking failed";
+
+    generateResponse(res, statusCode, false, message, null);
   }
 };
 

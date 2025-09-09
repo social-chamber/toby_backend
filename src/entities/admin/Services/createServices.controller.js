@@ -1,4 +1,5 @@
 import { generateResponse } from "../../../lib/responseFormate.js";
+import { handleControllerError } from "../../../lib/handleError.js";
 import {
   createService,
   getAllServices,
@@ -12,7 +13,7 @@ export const createServiceController = async (req, res) => {
     const service = await createService(req.body);
     generateResponse(res, 200, true, "Service created successfully", service);
   } catch (error) {
-    generateResponse(res, 500, false, "Failed to create service", error.message);
+    handleControllerError(res, error, "Failed to create service");
   }
 };
 
@@ -22,7 +23,7 @@ export const getAllServicesController = async (req, res) => {
     const services = await getAllServices();
     generateResponse(res, 200, true, "Services fetched successfully", services);
   } catch (error) {
-    generateResponse(res, 500, false, "Failed to fetch services", error.message);
+    handleControllerError(res, error, "Failed to fetch services");
   }
 };
 
@@ -35,7 +36,7 @@ export const getServiceByIdController = async (req, res) => {
     }
     generateResponse(res, 200, true, "Service fetched successfully", service);
   } catch (error) {
-    generateResponse(res, 500, false, "Failed to fetch service", error.message);
+    handleControllerError(res, error, "Failed to fetch service");
   }
 };
 
@@ -62,6 +63,6 @@ export const getServiceByCategoryIdController = async (req, res) => {
     
     generateResponse(res, 200, true, "Service fetched successfully", cleanServices);
   } catch (error) {
-    generateResponse(res, 500, false, "Failed to fetch service", error.message);
+    handleControllerError(res, error, "Failed to fetch service");
   }
 };
