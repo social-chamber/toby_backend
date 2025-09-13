@@ -91,8 +91,11 @@ export const stripeWebhook = async (req, res) => {
     };
 
 
+      // Import payment success template
+      const { paymentSuccessTemplate } = await import('../../lib/emailTemplates.js');
+      
       // Prepare email payload
-      const emailHtml = bookingConfirmationTemplate({
+      const emailHtml = paymentSuccessTemplate({
         name: `${booking.user.firstName || ''} ${booking.user.lastName || ''}`.trim() || 'Customer',
         email: booking.user.email || '',
         category: booking?.service?.category?.name || 'N/A',
@@ -106,7 +109,7 @@ export const stripeWebhook = async (req, res) => {
       // Send confirmation email with retry logic
       const emailResult = await emailService.sendEmailWithRetry({
         to: booking.user.email,
-        subject: 'Your Booking Confirmation',
+        subject: 'Booking Confirmed - Payment Successful | Toby',
         html: emailHtml,
         priority: 'high'
       });
@@ -125,6 +128,84 @@ export const stripeWebhook = async (req, res) => {
       break;
     }
 
+    case 'payment_intent.payment_failed': {
+      console.log('Payment failed event received:', event.id);
+      
+      const paymentIntent = event.data.object;
+      const paymentIntentId = paymentIntent.id;
+
+      // Find the booking associated with this payment
+      const payment = await Payment.findOne({ paymentIntentId });
+      if (!payment) {
+        console.warn('Payment not found for failed intent:', paymentIntentId);
+        break;
+      }
+
+      // Update payment status
+      await Payment.findByIdAndUpdate(payment._id, { 
+        paymentStatus: 'failed' 
+      });
+
+      // Update booking status
+      const booking = await Booking.findByIdAndUpdate(
+        payment.booking,
+        { 
+          status: 'cancelled',
+          paymentStatus: 'failed'
+        },
+        { new: true }
+      ).populate('service room');
+
+      if (!booking) {
+        console.warn('Booking not found for payment:', payment._id);
+        break;
+      }
+
+      // Send payment failed email
+      try {
+        const formatDate = (date) => {
+          const d = new Date(date);
+          const day = String(d.getDate()).padStart(2, '0');
+          const month = String(d.getMonth() + 1).padStart(2, '0');
+          const year = d.getFullYear();
+          return `${day}/${month}/${year}`;
+        };
+
+        const { paymentFailedTemplate } = await import('../../lib/emailTemplates.js');
+
+        const emailHtml = paymentFailedTemplate({
+          name: `${booking.user.firstName || ''} ${booking.user.lastName || ''}`.trim() || 'Customer',
+          email: booking.user.email || '',
+          category: booking?.service?.category?.name || 'N/A',
+          room: booking?.room?.title || booking?.room?.name || 'N/A',
+          service: booking?.service?.name || 'N/A',
+          time: booking.timeSlots || [],
+          bookingId: booking._id,
+          date: formatDate(booking.date)
+        });
+
+        const emailResult = await emailService.sendEmailWithRetry({
+          to: booking.user.email,
+          subject: 'Payment Failed - Booking Cancelled | Toby',
+          html: emailHtml,
+          priority: 'high'
+        });
+
+        if (emailResult.success) {
+          await Booking.findByIdAndUpdate(booking._id, {
+            paymentFailedEmailSentAt: new Date(),
+            paymentFailedEmailMessageId: emailResult.messageId
+          });
+          console.log(`✅ Payment failed email sent for booking ${booking._id}`);
+        } else {
+          console.error(`❌ Failed to send payment failed email for booking ${booking._id}:`, emailResult.error);
+        }
+      } catch (error) {
+        console.error('❌ Error sending payment failed email:', error.message);
+      }
+
+      break;
+    }
 
       case 'charge.refunded':
       case 'refund.updated':

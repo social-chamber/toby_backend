@@ -72,6 +72,10 @@ const bookingSchema = new Schema({
     cancelledEmailMessageId: { type: String, default: null },
     refundedEmailSentAt: { type: Date, default: null },
     refundedEmailMessageId: { type: String, default: null },
+    creationEmailSentAt: { type: Date, default: null },
+    creationEmailMessageId: { type: String, default: null },
+    paymentFailedEmailSentAt: { type: Date, default: null },
+    paymentFailedEmailMessageId: { type: String, default: null },
     priceAtCheckout: { type: Number, default: null }, // Store price snapshot at checkout
     originalServicePrice: { type: Number, default: null }, // Store original service pricePerSlot
     priceCalculationMethod: { type: String, default: 'current' }, // 'current' or 'legacy'

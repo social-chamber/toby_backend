@@ -149,6 +149,50 @@ export const createBookingService = async (data) => {
     // Note: Promo code usage count is incremented in the payment webhook when payment is successful
     // This prevents double counting and ensures usage is only counted for paid bookings
 
+    // Send booking creation email
+    try {
+        const { default: emailService } = await import('../../lib/emailService.js');
+        const { bookingCreationTemplate } = await import('../../lib/emailTemplates.js');
+        
+        const formatDate = (date) => {
+            const d = new Date(date);
+            const day = String(d.getDate()).padStart(2, '0');
+            const month = String(d.getMonth() + 1).padStart(2, '0');
+            const year = d.getFullYear();
+            return `${day}/${month}/${year}`;
+        };
+
+        const emailHtml = bookingCreationTemplate({
+            name: `${user.firstName} ${user.lastName}`,
+            email: user.email,
+            category: service?.category?.name || 'N/A',
+            room: booking.room?.title || booking.room?.name || 'N/A',
+            service: service?.name || 'N/A',
+            time: timeSlots || [],
+            bookingId: booking._id,
+            date: formatDate(booking.date)
+        });
+
+        const emailResult = await emailService.sendEmailWithRetry({
+            to: user.email,
+            subject: 'Booking Created - Payment Pending | Toby',
+            html: emailHtml,
+            priority: 'high'
+        });
+
+        if (emailResult.success) {
+            booking.creationEmailSentAt = new Date();
+            booking.creationEmailMessageId = emailResult.messageId;
+            await booking.save();
+            console.log(`✅ Booking creation email sent for booking ${booking._id} to ${user.email}`);
+        } else {
+            console.error(`❌ Failed to send booking creation email for booking ${booking._id}:`, emailResult.error);
+        }
+    } catch (error) {
+        console.error('❌ Error sending booking creation email:', error.message);
+        // Don't fail booking creation if email fails
+    }
+
     return booking;
 };
 
