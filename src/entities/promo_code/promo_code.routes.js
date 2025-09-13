@@ -8,6 +8,7 @@ import {
   applyPromoCode,
   sendBulkEmailController,
   getPromoEmailRecipients,
+  syncPromoUsageCounts,
 } from "./promo_code.controller.js";
 import { adminMiddleware, verifyToken } from "../../core/middlewares/authMiddleware.js";
 
@@ -27,5 +28,8 @@ router.delete("/:id", verifyToken, adminMiddleware, deletePromoCode);
 // email
 router.get('/recipients', verifyToken, adminMiddleware, getPromoEmailRecipients);
 router.post('/send', verifyToken, adminMiddleware, sendBulkEmailController);
+
+// sync promo usage counts
+router.post('/sync-usage-counts', verifyToken, adminMiddleware, syncPromoUsageCounts);
 
 export default router;

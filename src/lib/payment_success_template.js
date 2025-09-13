@@ -1,13 +1,13 @@
 
 const bookingConfirmationTemplate = ({
-  name,
-  email,
-  category,
-  room,
-  service,
-  time,
-  bookingId,
-  date
+  name = 'Customer',
+  email = 'N/A',
+  category = 'N/A',
+  room = 'N/A',
+  service = 'N/A',
+  time = [],
+  bookingId = 'N/A',
+  date = 'N/A'
 }) => `
   <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; border: 1px solid #ddd; padding: 20px; border-radius: 10px; background-color: #f9f9f9;">
     <div style="text-align: center;">
@@ -23,7 +23,7 @@ const bookingConfirmationTemplate = ({
       <tr><td style="padding: 8px 0;"><strong>Category:</strong></td><td>${category}</td></tr>
       <tr><td style="padding: 8px 0;"><strong>Room:</strong></td><td>${room}</td></tr>
       <tr><td style="padding: 8px 0;"><strong>Service:</strong></td><td>${service}</td></tr>
-      ${time instanceof Array ? `<tr><td style="padding: 8px 0;"><strong>Time Slots:</strong></td><td>${time.map(slot => `${slot.start} - ${slot.end}`).join(', ')}</td></tr>` : `<tr><td style="padding: 8px 0;"><strong>Time:</strong></td><td>${time}</td></tr>`}
+      ${Array.isArray(time) && time.length > 0 ? `<tr><td style="padding: 8px 0;"><strong>Time Slots:</strong></td><td>${time.join(', ')}</td></tr>` : `<tr><td style="padding: 8px 0;"><strong>Time:</strong></td><td>${time || 'N/A'}</td></tr>`}
       <tr><td style="padding: 8px 0;"><strong>Booking Date:</strong></td><td>${date}</td></tr>
     </table>
      <div style="margin-top: 20px; padding: 15px; background-color: #fff3cd; border: 1px solid #ffeeba; border-radius: 8px; color: #856404; font-size: 14px;">

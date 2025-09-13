@@ -70,6 +70,16 @@ export const stripeWebhook = async (req, res) => {
         break;
       }
 
+      // Increment promo code usage count when payment is completed
+      if (booking.promoCode) {
+        try {
+          const { incrementPromoUsageService } = await import('../promo_code/promo_code.service.js');
+          await incrementPromoUsageService(booking.promoCode);
+          console.log(`✅ Promo code usage incremented for booking ${booking._id}`);
+        } catch (error) {
+          console.error(`❌ Failed to increment promo usage for booking ${booking._id}:`, error.message);
+        }
+      }
 
     
     const formatDate = (date) => {
@@ -83,12 +93,12 @@ export const stripeWebhook = async (req, res) => {
 
       // Prepare email payload
       const emailHtml = bookingConfirmationTemplate({
-        name: `${booking.user.firstName} ${booking.user.lastName}`,
-        email: booking.user.email,
-        category: booking.service.category.name,
-        room: booking.room.title,
-        service: booking.service.name,
-        time: booking.timeSlots,
+        name: `${booking.user.firstName || ''} ${booking.user.lastName || ''}`.trim() || 'Customer',
+        email: booking.user.email || '',
+        category: booking?.service?.category?.name || 'N/A',
+        room: booking?.room?.title || booking?.room?.name || 'N/A',
+        service: booking?.service?.name || 'N/A',
+        time: booking.timeSlots || [],
         bookingId: booking._id,
         date: formatDate(booking.date)
       });

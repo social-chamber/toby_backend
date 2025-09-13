@@ -36,10 +36,18 @@ const promoCodeSchema = new Schema(
     usedCount: {
       type: Number,
       default: 0,
+      min: 0,
     },
     usageCount: {
       type: Number,
       default: 0,
+      min: 0,
+    },
+    // Track actual usage from bookings for verification
+    actualUsageCount: {
+      type: Number,
+      default: 0,
+      min: 0,
     },
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
@@ -69,6 +77,36 @@ promoCodeSchema.pre("save", function (next) {
   }
   next();
 });
+
+// Method to automatically sync usage counts
+promoCodeSchema.methods.syncUsageCounts = async function() {
+  const Booking = mongoose.model('Booking');
+  const actualCount = await Booking.countDocuments({ promoCode: this._id });
+  
+  this.usedCount = actualCount;
+  this.usageCount = actualCount;
+  this.actualUsageCount = actualCount;
+  
+  return this.save();
+};
+
+// Static method to sync all promo codes
+promoCodeSchema.statics.syncAllUsageCounts = async function() {
+  const Booking = mongoose.model('Booking');
+  const promoCodes = await this.find({});
+  
+  for (const promo of promoCodes) {
+    const actualCount = await Booking.countDocuments({ promoCode: promo._id });
+    
+    await this.findByIdAndUpdate(promo._id, {
+      usedCount: actualCount,
+      usageCount: actualCount,
+      actualUsageCount: actualCount
+    });
+  }
+  
+  return promoCodes.length;
+};
 
 
 // Index for faster search

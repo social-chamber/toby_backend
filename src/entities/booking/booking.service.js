@@ -1,4 +1,5 @@
 import PromoCode from '../promo_code/promo_code.model.js';
+import { incrementPromoUsageService } from '../promo_code/promo_code.service.js';
 import Booking from './booking.model.js';
 import Service from '../admin/Services/createServices.model.js';
 import Category from '../category/category.model.js';
@@ -66,6 +67,11 @@ for (let requestedSlot of timeSlots) {
             throw new Error('Promo code expired');
         }
 
+        // Check usage limit before applying
+        if (promo.usageLimit && promo.usedCount >= promo.usageLimit) {
+            throw new Error('Promo code usage limit exceeded');
+        }
+
         const discountType = typeof promo.discountType === 'string' ? promo.discountType.toLowerCase() : '';
         if (discountType === 'percentage') {
             total = total - total * (promo.discountValue / 100);
@@ -123,6 +129,10 @@ for (let requestedSlot of timeSlots) {
         expiresAt: new Date(Date.now() + 15 * 60 * 1000),
         freeSlotsAwarded: freeSlotsShouldHave > freeSlotsAwarded ? freeSlotsAwarded + 1 : freeSlotsAwarded
     });
+
+    // STEP 5: Promo code usage count will be incremented when payment is completed
+    // (This happens in the Stripe webhook when paymentStatus changes to 'paid')
+
     return booking;
 };
 

@@ -5,6 +5,8 @@ import {
   updatePromoCodeService,
   deletePromoCodeService,
   applyPromoCodeService,
+  incrementPromoUsageService,
+  syncAllPromoUsageCountsService,
 } from "./promo_code.service.js";
 import { generateResponse } from "../../lib/responseFormate.js";
 import { createFilter, createPaginationInfo } from "../../lib/pagination.js";
@@ -197,6 +199,19 @@ export const retryFailedEmailsController = async (req, res) => {
     const msg = error?.message || 'Failed to retry emails';
     const isClientError = /not found/i.test(msg);
     generateResponse(res, isClientError ? 404 : 500, false, msg, null);
+  }
+};
+
+// Sync all promo code usage counts
+export const syncPromoUsageCounts = async (req, res) => {
+  try {
+    const result = await syncAllPromoUsageCountsService();
+    return generateResponse(res, 200, true, "Promo usage counts synced successfully", {
+      syncedCount: result.syncedCount
+    });
+  } catch (error) {
+    const msg = error.message || "Failed to sync promo usage counts";
+    generateResponse(res, 500, false, msg, null);
   }
 };
 

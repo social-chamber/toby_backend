@@ -60,15 +60,51 @@ export const applyPromoCodeService = async (code) => {
   const now = new Date();
   if (promo.expiryDate <= now) throw new Error("Promo code has expired");
 
+  // Sync usage counts before checking limit
+  await promo.syncUsageCounts();
+
   if (promo.usageLimit && promo.usedCount >= promo.usageLimit) {
     throw new Error("Promo code usage limit exceeded");
   }
 
-  promo.usedCount += 1;
-  promo.usageCount += 1; // Keep both fields in sync
-  await promo.save();
-
   return promo;
+};
+
+// Enhanced service to increment usage count atomically
+export const incrementPromoUsageService = async (promoId) => {
+  try {
+    const result = await PromoCode.findByIdAndUpdate(
+      promoId,
+      {
+        $inc: { 
+          usedCount: 1,
+          usageCount: 1,
+          actualUsageCount: 1
+        }
+      },
+      { new: true }
+    );
+    
+    if (!result) {
+      throw new Error("Promo code not found");
+    }
+    
+    return result;
+  } catch (error) {
+    console.error("Error incrementing promo usage:", error);
+    throw error;
+  }
+};
+
+// Service to sync all promo code usage counts
+export const syncAllPromoUsageCountsService = async () => {
+  try {
+    const count = await PromoCode.syncAllUsageCounts();
+    return { success: true, syncedCount: count };
+  } catch (error) {
+    console.error("Error syncing promo usage counts:", error);
+    throw error;
+  }
 };
 
 
