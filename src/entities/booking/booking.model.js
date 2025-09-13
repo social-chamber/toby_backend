@@ -68,6 +68,10 @@ const bookingSchema = new Schema({
     isManualBooking: { type: Boolean, default: false },
     confirmationEmailSentAt: { type: Date, default: null },
     confirmationEmailMessageId: { type: String, default: null },
+    cancelledEmailSentAt: { type: Date, default: null },
+    cancelledEmailMessageId: { type: String, default: null },
+    refundedEmailSentAt: { type: Date, default: null },
+    refundedEmailMessageId: { type: String, default: null },
     priceAtCheckout: { type: Number, default: null }, // Store price snapshot at checkout
     originalServicePrice: { type: Number, default: null }, // Store original service pricePerSlot
     priceCalculationMethod: { type: String, default: 'current' }, // 'current' or 'legacy'

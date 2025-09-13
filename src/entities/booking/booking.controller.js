@@ -148,12 +148,12 @@ export const getBookingById = async (req, res) => {
 
 export const updateBooking = async (req, res) => {
   try {
-    const { status } = req.body;
+    const { status, reason } = req.body;
     if (!status) {
       return generateResponse(res, 400, false, 'Status is required', null);
     }
 
-    const updatedBooking = await bookingService.updateBooking(req.params.id, status);
+    const updatedBooking = await bookingService.updateBooking(req.params.id, status, reason);
     return generateResponse(res, 200, true, 'Booking status updated successfully', updatedBooking);
   } catch (error) {
     return generateResponse(res, 400, false, error.message, null);
