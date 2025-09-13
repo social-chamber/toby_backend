@@ -40,6 +40,31 @@ for (let requestedSlot of timeSlots) {
     }
 }
 
+// ADDITIONAL SAFETY CHECK: Double-verify no confirmed bookings exist for these exact time slots
+const safetyCheckDate = new Date(date);
+const safetyStartOfDay = new Date(safetyCheckDate);
+safetyStartOfDay.setHours(0, 0, 0, 0);
+const safetyEndOfDay = new Date(safetyCheckDate);
+safetyEndOfDay.setHours(23, 59, 59, 999);
+
+const conflictingBookings = await Booking.find({
+    date: { $gte: safetyStartOfDay, $lte: safetyEndOfDay },
+    room: roomId,
+    status: 'confirmed',
+    timeSlots: {
+        $elemMatch: {
+            $or: timeSlots.map(slot => ({
+                start: slot.start,
+                end: slot.end
+            }))
+        }
+    }
+});
+
+if (conflictingBookings.length > 0) {
+    throw new Error(`Time slots are already booked by confirmed reservations. Please select different times.`);
+}
+
 
     // STEP 2: Calculate total price based on number of people
     // IMPORTANT: Match frontend pricing logic (+$1 per slot)
@@ -244,8 +269,7 @@ export const deleteBooking = async (id) => {
 
 function timeToMinutes(t) {
   const [h, m] = t.split(':').map(Number);
-  if (t === "00:00") return 1440;
-  return h * 60 + m;
+  return h * 60 + m;  // 00:00 should be 0, not 1440
 }
 
 
@@ -301,11 +325,12 @@ export const checkAvailabilityService = async (date, serviceId,roomId) => {
     const endOfDay = new Date(date);
     endOfDay.setHours(23, 59, 59, 999);
 
-    // Prevent cross-category clashes by checking all bookings for the same room on the date
+    // Prevent double-booking by checking only CONFIRMED bookings for the same room on the date
+    // Only confirmed bookings should block new bookings (pending bookings can be cancelled/expired)
     const existingBookings = await Booking.find({
         date: { $gte: startOfDay, $lte: endOfDay },
         room: roomId,
-        status: { $in: ['pending', 'confirmed'] }
+        status: 'confirmed'  // Only confirmed bookings block new bookings
     });
     
 
