@@ -1,5 +1,5 @@
 import { generateResponse } from '../../lib/responseFormate.js';
-import sendEmail from '../../lib/sendEmail.js';
+import emailService from '../../lib/emailService.js';
 import bookingConfirmationTemplate from '../../lib/payment_success_template.js';
 import { checkAvailabilityService, createBookingService } from './booking.service.js';
 import Booking from './booking.model.js';
@@ -40,7 +40,13 @@ export const createBookingController = async (req, res) => {
       promoCode,
       numberOfPeople,
     });
-    // console.log(booking);
+    
+    // Store comprehensive price snapshot at checkout time
+    booking.priceAtCheckout = booking.total;
+    booking.originalServicePrice = booking.service?.pricePerSlot || 0;
+    booking.priceCalculationMethod = 'current';
+    booking.pricingDiscrepancy = 0; // No discrepancy with current logic
+    await booking.save();
 
     
     // If the user is an admin, set manual booking flags
@@ -72,11 +78,18 @@ export const createBookingController = async (req, res) => {
           date: formatDate(booking.date)
         });
 
-        await sendEmail({
+        const emailResult = await emailService.sendEmailWithRetry({
           to: booking.user.email,
           subject: 'Your Booking Confirmation',
           html: emailHtml,
+          priority: 'high'
         });
+        
+        if (emailResult.success) {
+          booking.confirmationEmailSentAt = new Date();
+          booking.confirmationEmailMessageId = emailResult.messageId;
+          await booking.save();
+        }
       } catch (e) {
         console.error('Manual booking confirmation email failed:', e?.message || e);
       }

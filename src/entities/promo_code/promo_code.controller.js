@@ -8,9 +8,16 @@ import {
 } from "./promo_code.service.js";
 import { generateResponse } from "../../lib/responseFormate.js";
 import { createFilter, createPaginationInfo } from "../../lib/pagination.js";
-import sendEmail from "../../lib/sendEmail.js";
+import emailService from "../../lib/emailService.js";
 import User from "../auth/auth.model.js";
 import bookingModel from "../booking/booking.model.js";
+import { 
+  createPromoEmailCampaign, 
+  sendPromoEmailCampaign, 
+  retryFailedEmails,
+  getPromoEmailCampaigns,
+  getPromoEmailStats 
+} from "./promoEmail.service.js";
 
 
 export const getPromoEmailRecipients = async (req, res) => {
@@ -104,57 +111,92 @@ export const applyPromoCode = async (req, res) => {
 
 
 export const sendBulkEmailController = async (req, res) => {
-  const { subject, body, promoCode, recipients } = req.body;
+  const { subject, body, promoCodeId, recipients } = req.body;
 
-  if (!subject || !body || !promoCode) {
+  if (!subject || !body || !promoCodeId) {
     return generateResponse(
       res,
       400,
-      "fail",
-      "Subject, body, and promoCode are required.",
+      false,
+      "Subject, body, and promoCodeId are required.",
       null
     );
   }
 
   try {
-    // Accept explicit recipients, otherwise fallback to distinct emails from bookings
-    let targetEmails = Array.isArray(recipients) && recipients.length > 0
-      ? recipients
-      : await bookingModel.distinct('user.email');
+    // Create email campaign
+    const campaign = await createPromoEmailCampaign({
+      promoCodeId,
+      subject,
+      body,
+      recipients,
+      sentBy: req.user._id
+    });
 
-    targetEmails = targetEmails.filter(Boolean);
-    if (!targetEmails.length) {
-      return generateResponse(res, 404, "fail", "No recipients found.", null);
-    }
+    // Send emails asynchronously
+    sendPromoEmailCampaign(campaign._id)
+      .then(result => {
+        console.log(`Promo email campaign ${campaign._id} completed:`, {
+          successful: result.results.successful.length,
+          failed: result.results.failed.length
+        });
+      })
+      .catch(error => {
+        console.error(`Promo email campaign ${campaign._id} failed:`, error);
+      });
 
-    const html = `
-      <div style="font-family: Arial, sans-serif;">
-        <h1 style="color: #333;">${subject}</h1>
-        <p style="color: #555;">Hello,</p>
-        <p>${body}</p>
-        <p style="color: #555;">Your promo code is: <strong>${promoCode}</strong></p>
-        <p style="color: #555;">Thank you for using our service!</p>
-      </div>
-    `;
-
-    // Send emails one by one (or you can use Promise.all for parallel sending)
-    const sendJobs = targetEmails.map((email) =>
-      sendEmail({ to: email, subject, html })
-    );
-    const results = await Promise.all(sendJobs);
-
-    const successCount = results.filter((r) => r.success).length;
-    const failCount = results.length - successCount;
-
-    return generateResponse(res, 200, "success", "Bulk email send process completed", {
-      total: targetEmails.length,
-      success: successCount,
-      failed: failCount,
+    return generateResponse(res, 200, true, "Email campaign created and started", {
+      campaignId: campaign._id,
+      totalRecipients: campaign.totalRecipients,
+      status: campaign.status
     });
   } catch (error) {
-    const msg = error?.message || 'An unexpected error occurred while sending bulk emails';
-    const isClientError = /no recipients|required/i.test(msg);
-    return generateResponse(res, isClientError ? 400 : 500, "error", msg, null);
+    const msg = error?.message || 'An unexpected error occurred while creating email campaign';
+    const isClientError = /not found|no recipients|required/i.test(msg);
+    return generateResponse(res, isClientError ? 400 : 500, false, msg, null);
+  }
+};
+
+export const getEmailCampaigns = async (req, res) => {
+  try {
+    const { page = 1, limit = 10, promoCodeId } = req.query;
+    const filter = promoCodeId ? { promoCode: promoCodeId } : {};
+    
+    const { campaigns, total } = await getPromoEmailCampaigns(filter, page, limit);
+    const pagination = createPaginationInfo(Number(page), Number(limit), total);
+    
+    generateResponse(res, 200, true, "Email campaigns fetched successfully", {
+      campaigns,
+      pagination
+    });
+  } catch (error) {
+    generateResponse(res, 500, false, "Failed to fetch email campaigns", error.message);
+  }
+};
+
+export const getEmailCampaignStats = async (req, res) => {
+  try {
+    const { promoCodeId } = req.query;
+    const stats = await getPromoEmailStats(promoCodeId);
+    
+    generateResponse(res, 200, true, "Email campaign stats fetched successfully", stats);
+  } catch (error) {
+    generateResponse(res, 500, false, "Failed to fetch email campaign stats", error.message);
+  }
+};
+
+export const retryFailedEmailsController = async (req, res) => {
+  try {
+    const { campaignId } = req.params;
+    const { maxRetries = 3 } = req.body;
+    
+    const result = await retryFailedEmails(campaignId, maxRetries);
+    
+    generateResponse(res, 200, true, "Failed emails retry completed", result);
+  } catch (error) {
+    const msg = error?.message || 'Failed to retry emails';
+    const isClientError = /not found/i.test(msg);
+    generateResponse(res, isClientError ? 404 : 500, false, msg, null);
   }
 };
 

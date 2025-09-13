@@ -41,7 +41,8 @@ for (let requestedSlot of timeSlots) {
 
 
     // STEP 2: Calculate total price based on number of people
-    const pricePerSlot = service.pricePerSlot || 0;
+    // IMPORTANT: Match frontend pricing logic (+$1 per slot)
+    const pricePerSlot = (service.pricePerSlot || 0) + 1; // Add $1 to match frontend display
     let total = pricePerSlot * timeSlots.length * numberOfPeople;
 
 
@@ -162,13 +163,13 @@ export const getAllBookings = async ({ startDate, endDate, status } = {}, { page
 
     if (startDate) {
       const start = new Date(startDate);
-      start.setHours(0, 0, 0, 0);
+      start.setUTCHours(0, 0, 0, 0);
       query.date.$gte = start;
     }
 
     if (endDate) {
       const end = new Date(endDate);
-      end.setHours(23, 59, 59, 999);
+      end.setUTCHours(23, 59, 59, 999);
       query.date.$lte = end;
     }
   }

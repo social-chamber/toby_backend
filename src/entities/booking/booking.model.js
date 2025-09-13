@@ -39,7 +39,7 @@ const bookingSchema = new Schema({
     },
     status: {
         type: String,
-        enum: ['pending', 'confirmed', 'cancelled','refunded'],
+        enum: ['pending', 'hold', 'confirmed', 'cancelled','refunded'],
         default: 'pending'
     },
     stripeSessionId: {
@@ -65,7 +65,18 @@ const bookingSchema = new Schema({
         default: 'pending',
     },
     freeSlotsAwarded: { type: Number, default: 0 },
-    isManualBooking: { type: Boolean, default: false }
+    isManualBooking: { type: Boolean, default: false },
+    confirmationEmailSentAt: { type: Date, default: null },
+    confirmationEmailMessageId: { type: String, default: null },
+    priceAtCheckout: { type: Number, default: null }, // Store price snapshot at checkout
+    originalServicePrice: { type: Number, default: null }, // Store original service pricePerSlot
+    priceCalculationMethod: { type: String, default: 'current' }, // 'current' or 'legacy'
+    pricingDiscrepancy: { type: Number, default: 0 }, // Track any pricing discrepancies
+    holdExpiresAt: { type: Date, default: null },
+    holdCreatedAt: { type: Date, default: null },
+    holdReleasedAt: { type: Date, default: null },
+    holdReleaseReason: { type: String, default: null },
+    confirmedAt: { type: Date, default: null }
 }, 
 {
     timestamps: true

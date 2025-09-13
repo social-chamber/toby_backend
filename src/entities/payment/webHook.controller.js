@@ -1,7 +1,7 @@
 import Stripe from 'stripe';
 import Booking from '../booking/booking.model.js';
 import { Payment } from './payment.model.js';
-import sendEmail from '../../lib/sendEmail.js';
+import emailService from '../../lib/emailService.js';
 import bookingConfirmationTemplate from '../../lib/payment_success_template.js';
 
 
@@ -93,12 +93,24 @@ export const stripeWebhook = async (req, res) => {
         date: formatDate(booking.date)
       });
 
-      // Send confirmation email
-      await sendEmail({
+      // Send confirmation email with retry logic
+      const emailResult = await emailService.sendEmailWithRetry({
         to: booking.user.email,
         subject: 'Your Booking Confirmation',
         html: emailHtml,
+        priority: 'high'
       });
+      
+      if (emailResult.success) {
+        // Update booking with email confirmation details
+        await Booking.findByIdAndUpdate(booking._id, {
+          confirmationEmailSentAt: new Date(),
+          confirmationEmailMessageId: emailResult.messageId
+        });
+        console.log(`✅ Confirmation email sent for booking ${booking._id}`);
+      } else {
+        console.error(`❌ Failed to send confirmation email for booking ${booking._id}:`, emailResult.error);
+      }
 
       break;
     }

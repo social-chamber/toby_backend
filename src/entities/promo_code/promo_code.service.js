@@ -65,6 +65,7 @@ export const applyPromoCodeService = async (code) => {
   }
 
   promo.usedCount += 1;
+  promo.usageCount += 1; // Keep both fields in sync
   await promo.save();
 
   return promo;
