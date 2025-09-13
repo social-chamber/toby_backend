@@ -100,19 +100,39 @@ export const createBookingController = async (req, res) => {
     console.error("Create Booking Error:", error);
 
     const msg = (error && error.message) ? String(error.message) : "Booking failed";
+    
+    // Check for specific conflict errors
+    const isConflictError = (
+      /already booked/i.test(msg) ||
+      /no longer available/i.test(msg) ||
+      /time slots.*booked/i.test(msg) ||
+      error.code === 'SLOT_CONFLICT'
+    );
+    
     const isClientError = (
       /invalid/i.test(msg) ||
       /expired/i.test(msg) ||
       /not found/i.test(msg) ||
-      /no longer available/i.test(msg) ||
       /missing/i.test(msg) ||
       /required/i.test(msg)
     );
 
-    const statusCode = isClientError ? 400 : 500;
-    const message = isClientError ? msg : "Booking failed";
+    let statusCode = 500;
+    let message = "Booking failed";
+    
+    if (isConflictError) {
+      statusCode = 409;
+      message = msg;
+    } else if (isClientError) {
+      statusCode = 400;
+      message = msg;
+    }
 
-    generateResponse(res, statusCode, false, message, null);
+    // Ensure we only respond once
+    if (!res.headersSent) {
+      return generateResponse(res, statusCode, false, message, null);
+    }
+    // Otherwise just log and return
   }
 };
 

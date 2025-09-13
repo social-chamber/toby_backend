@@ -35,7 +35,10 @@ export const createBookingService = async (data) => {
                 slot.available === true
         );
         if (!match) {
-            throw new Error(`Slot ${requestedSlot.start} - ${requestedSlot.end} is no longer available.`);
+            const e = new Error(`Slot ${requestedSlot.start} - ${requestedSlot.end} is no longer available.`);
+            e.statusCode = 409;
+            e.code = 'SLOT_CONFLICT';
+            throw e;
         }
     }
 
@@ -61,7 +64,10 @@ export const createBookingService = async (data) => {
     });
 
     if (conflictingBookings.length > 0) {
-        throw new Error(`Time slots are already booked by confirmed reservations. Please select different times.`);
+        const e = new Error(`Time slots are already booked by confirmed reservations. Please select different times.`);
+        e.statusCode = 409;
+        e.code = 'SLOT_CONFLICT';
+        throw e;
     }
 
     // STEP 2: Calculate total price based on number of people
