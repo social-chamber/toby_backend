@@ -146,6 +146,9 @@ export const createBookingService = async (data) => {
         freeSlotsAwarded: freeSlotsShouldHave > freeSlotsAwarded ? freeSlotsAwarded + 1 : freeSlotsAwarded
     });
 
+    // Note: Promo code usage count is incremented in the payment webhook when payment is successful
+    // This prevents double counting and ensures usage is only counted for paid bookings
+
     return booking;
 };
 
