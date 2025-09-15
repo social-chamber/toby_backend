@@ -74,8 +74,23 @@ export const stripeWebhook = async (req, res) => {
       if (booking.promoCode) {
         try {
           const { incrementPromoUsageService } = await import('../promo_code/promo_code.service.js');
-          await incrementPromoUsageService(booking.promoCode);
+          const updatedPromo = await incrementPromoUsageService(booking.promoCode);
           console.log(`✅ Promo code usage incremented for booking ${booking._id}`);
+
+          // Send promo code usage notifications
+          try {
+            const { sendPromoCodeUsageNotifications } = await import('../../lib/promoCodeNotificationService.js');
+            
+            // Calculate original amount (before discount)
+            const service = booking.service;
+            const pricePerSlot = (service.pricePerSlot || 0) + 1; // Add $1 to match frontend display
+            const originalAmount = pricePerSlot * booking.timeSlots.length * booking.user.numberOfPeople;
+            
+            await sendPromoCodeUsageNotifications(booking, updatedPromo, originalAmount, booking.total);
+            console.log(`✅ Promo code usage notifications sent for booking ${booking._id}`);
+          } catch (notificationError) {
+            console.error(`❌ Failed to send promo code notifications for booking ${booking._id}:`, notificationError.message);
+          }
         } catch (error) {
           console.error(`❌ Failed to increment promo usage for booking ${booking._id}:`, error.message);
         }
@@ -154,7 +169,13 @@ export const stripeWebhook = async (req, res) => {
           paymentStatus: 'failed'
         },
         { new: true }
-      ).populate('service room');
+      ).populate({
+          path: 'service',
+          populate: {
+              path: 'category',
+              model: 'Category'
+          }
+      }).populate('room');
 
       if (!booking) {
         console.warn('Booking not found for payment:', payment._id);

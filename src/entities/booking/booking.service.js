@@ -198,7 +198,13 @@ export const createBookingService = async (data) => {
 
 export const getBookingById = async (id) => {
     const booking = await Booking.findById(id)
-        .populate('service')
+        .populate({
+            path: 'service',
+            populate: {
+                path: 'category',
+                model: 'Category'
+            }
+        })
         .populate('room')
         .populate('promoCode');
 
@@ -253,7 +259,13 @@ export const getAllBookings = async ({ startDate, endDate, status } = {}, { page
         Booking.countDocuments(query),
         Booking.find(query)
             .populate('room')
-            .populate('service')
+            .populate({
+                path: 'service',
+                populate: {
+                    path: 'category',
+                    model: 'Category'
+                }
+            })
             .populate('promoCode')
             .sort({ createdAt: -1 })
             .skip(skip)
@@ -277,7 +289,13 @@ export const updateBooking = async (id, status, reason = null) => {
     // First, get the booking with populated data for email
     const booking = await Booking.findById(id)
         .populate('room')
-        .populate('service')
+        .populate({
+            path: 'service',
+            populate: {
+                path: 'category',
+                model: 'Category'
+            }
+        })
         .populate('promoCode');
 
     if (!booking) throw new Error("Booking not found or update failed");

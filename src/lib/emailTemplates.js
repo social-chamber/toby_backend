@@ -150,3 +150,129 @@ export const paymentSuccessTemplate = ({
     </footer>
   </div>
 `;
+
+// Promo Code Usage Notification Templates
+export const promoCodeUsedUserTemplate = ({
+  name = 'Customer',
+  email = 'N/A',
+  promoCode = 'N/A',
+  originalAmount = 'N/A',
+  discountedAmount = 'N/A',
+  savings = 'N/A',
+  bookingId = 'N/A',
+  service = 'N/A',
+  room = 'N/A',
+  date = 'N/A',
+  time = []
+}) => `
+  <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; border: 1px solid #ddd; padding: 20px; border-radius: 10px; background-color: #f9f9f9;">
+    <div style="text-align: center;">
+      <div style="font-size: 48px; color: #ff6b35;">🎉</div>
+      <h2 style="color: #ff6b35;">Promo Code Applied Successfully!</h2>
+      <p style="font-size: 14px; color: #666;">Congratulations! Your promo code has been applied to your booking.</p>
+    </div>
+    
+    <div style="margin: 20px 0; padding: 15px; background-color: #fff3cd; border: 2px solid #ffeaa7; border-radius: 8px; text-align: center;">
+      <h3 style="color: #856404; margin: 0 0 10px 0;">Your Savings</h3>
+      <div style="font-size: 32px; font-weight: bold; color: #28a745;">$${savings}</div>
+      <p style="color: #856404; margin: 5px 0 0 0;">You saved with promo code: <strong>${promoCode}</strong></p>
+    </div>
+
+    <h3 style="border-bottom: 1px solid #ccc; padding-bottom: 10px; color: #222;">Booking Details</h3>
+    <table style="width: 100%; font-size: 14px; color: #333;">
+      <tr><td style="padding: 8px 0;"><strong>Booking ID:</strong></td><td>${bookingId}</td></tr>
+      <tr><td style="padding: 8px 0;"><strong>Name:</strong></td><td>${name}</td></tr>
+      <tr><td style="padding: 8px 0;"><strong>Email:</strong></td><td>${email}</td></tr>
+      <tr><td style="padding: 8px 0;"><strong>Service:</strong></td><td>${service}</td></tr>
+      <tr><td style="padding: 8px 0;"><strong>Room:</strong></td><td>${room}</td></tr>
+      ${Array.isArray(time) && time.length > 0 ? `<tr><td style="padding: 8px 0;"><strong>Time Slots:</strong></td><td>${time.join(', ')}</td></tr>` : `<tr><td style="padding: 8px 0;"><strong>Time:</strong></td><td>${time || 'N/A'}</td></tr>`}
+      <tr><td style="padding: 8px 0;"><strong>Booking Date:</strong></td><td>${date}</td></tr>
+    </table>
+
+    <h3 style="border-bottom: 1px solid #ccc; padding-bottom: 10px; color: #222; margin-top: 20px;">Payment Summary</h3>
+    <table style="width: 100%; font-size: 14px; color: #333;">
+      <tr><td style="padding: 8px 0;"><strong>Original Amount:</strong></td><td>$${originalAmount}</td></tr>
+      <tr><td style="padding: 8px 0;"><strong>Promo Code:</strong></td><td style="color: #ff6b35; font-weight: bold;">${promoCode}</td></tr>
+      <tr><td style="padding: 8px 0;"><strong>Discount:</strong></td><td style="color: #28a745;">-$${savings}</td></tr>
+      <tr style="border-top: 2px solid #333;"><td style="padding: 8px 0;"><strong>Final Amount:</strong></td><td style="font-weight: bold; color: #333;">$${discountedAmount}</td></tr>
+    </table>
+
+    <div style="margin-top: 20px; padding: 15px; background-color: #d4edda; border: 1px solid #c3e6cb; border-radius: 8px; color: #155724; font-size: 14px;">
+      <strong>Thank you!</strong> We appreciate your business and hope you enjoy your booking experience.
+    </div>
+    
+    <footer style="border-top: 1px solid #ddd; padding-top: 10px; margin-top: 20px; text-align: center; font-size: 12px; color: #aaa;">
+      &copy; 2025 Toby Booking System. All rights reserved.
+    </footer>
+  </div>
+`;
+
+export const promoCodeUsedAdminTemplate = ({
+  userName = 'N/A',
+  userEmail = 'N/A',
+  userPhone = 'N/A',
+  promoCode = 'N/A',
+  discountType = 'N/A',
+  discountValue = 'N/A',
+  originalAmount = 'N/A',
+  discountedAmount = 'N/A',
+  savings = 'N/A',
+  bookingId = 'N/A',
+  service = 'N/A',
+  room = 'N/A',
+  date = 'N/A',
+  time = [],
+  usageCount = 'N/A',
+  remainingUses = 'N/A'
+}) => `
+  <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; border: 1px solid #ddd; padding: 20px; border-radius: 10px; background-color: #f9f9f9;">
+    <div style="text-align: center;">
+      <div style="font-size: 48px; color: #007bff;">📊</div>
+      <h2 style="color: #007bff;">Promo Code Usage Alert</h2>
+      <p style="font-size: 14px; color: #666;">A customer has successfully used a promo code for their booking.</p>
+    </div>
+
+    <div style="margin: 20px 0; padding: 15px; background-color: #e3f2fd; border: 2px solid #2196f3; border-radius: 8px;">
+      <h3 style="color: #1976d2; margin: 0 0 10px 0;">Promo Code Details</h3>
+      <table style="width: 100%; font-size: 14px; color: #333;">
+        <tr><td style="padding: 4px 0;"><strong>Code:</strong></td><td style="font-weight: bold; color: #ff6b35;">${promoCode}</td></tr>
+        <tr><td style="padding: 4px 0;"><strong>Discount Type:</strong></td><td>${discountType}</td></tr>
+        <tr><td style="padding: 4px 0;"><strong>Discount Value:</strong></td><td>${discountValue}</td></tr>
+        <tr><td style="padding: 4px 0;"><strong>Total Savings:</strong></td><td style="color: #28a745; font-weight: bold;">$${savings}</td></tr>
+        <tr><td style="padding: 4px 0;"><strong>Usage Count:</strong></td><td>${usageCount}</td></tr>
+        <tr><td style="padding: 4px 0;"><strong>Remaining Uses:</strong></td><td>${remainingUses}</td></tr>
+      </table>
+    </div>
+
+    <h3 style="border-bottom: 1px solid #ccc; padding-bottom: 10px; color: #222;">Customer Information</h3>
+    <table style="width: 100%; font-size: 14px; color: #333;">
+      <tr><td style="padding: 8px 0;"><strong>Name:</strong></td><td>${userName}</td></tr>
+      <tr><td style="padding: 8px 0;"><strong>Email:</strong></td><td>${userEmail}</td></tr>
+      <tr><td style="padding: 8px 0;"><strong>Phone:</strong></td><td>${userPhone}</td></tr>
+    </table>
+
+    <h3 style="border-bottom: 1px solid #ccc; padding-bottom: 10px; color: #222; margin-top: 20px;">Booking Details</h3>
+    <table style="width: 100%; font-size: 14px; color: #333;">
+      <tr><td style="padding: 8px 0;"><strong>Booking ID:</strong></td><td>${bookingId}</td></tr>
+      <tr><td style="padding: 8px 0;"><strong>Service:</strong></td><td>${service}</td></tr>
+      <tr><td style="padding: 8px 0;"><strong>Room:</strong></td><td>${room}</td></tr>
+      ${Array.isArray(time) && time.length > 0 ? `<tr><td style="padding: 8px 0;"><strong>Time Slots:</strong></td><td>${time.join(', ')}</td></tr>` : `<tr><td style="padding: 8px 0;"><strong>Time:</strong></td><td>${time || 'N/A'}</td></tr>`}
+      <tr><td style="padding: 8px 0;"><strong>Booking Date:</strong></td><td>${date}</td></tr>
+    </table>
+
+    <h3 style="border-bottom: 1px solid #ccc; padding-bottom: 10px; color: #222; margin-top: 20px;">Payment Summary</h3>
+    <table style="width: 100%; font-size: 14px; color: #333;">
+      <tr><td style="padding: 8px 0;"><strong>Original Amount:</strong></td><td>$${originalAmount}</td></tr>
+      <tr><td style="padding: 8px 0;"><strong>Discount Applied:</strong></td><td style="color: #28a745;">-$${savings}</td></tr>
+      <tr style="border-top: 2px solid #333;"><td style="padding: 8px 0;"><strong>Final Amount:</strong></td><td style="font-weight: bold; color: #333;">$${discountedAmount}</td></tr>
+    </table>
+
+    <div style="margin-top: 20px; padding: 15px; background-color: #fff3cd; border: 1px solid #ffeaa7; border-radius: 8px; color: #856404; font-size: 14px;">
+      <strong>Action Required:</strong> This notification is for tracking purposes. No immediate action is required unless you notice any suspicious activity.
+    </div>
+    
+    <footer style="border-top: 1px solid #ddd; padding-top: 10px; margin-top: 20px; text-align: center; font-size: 12px; color: #aaa;">
+      &copy; 2025 Toby Booking System. All rights reserved.
+    </footer>
+  </div>
+`;

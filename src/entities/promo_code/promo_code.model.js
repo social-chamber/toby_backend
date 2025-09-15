@@ -81,7 +81,10 @@ promoCodeSchema.pre("save", function (next) {
 // Method to automatically sync usage counts
 promoCodeSchema.methods.syncUsageCounts = async function() {
   const Booking = mongoose.model('Booking');
-  const actualCount = await Booking.countDocuments({ promoCode: this._id });
+  const actualCount = await Booking.countDocuments({ 
+    promoCode: this._id, 
+    status: 'confirmed' 
+  });
   
   this.usedCount = actualCount;
   this.usageCount = actualCount;
@@ -96,7 +99,10 @@ promoCodeSchema.statics.syncAllUsageCounts = async function() {
   const promoCodes = await this.find({});
   
   for (const promo of promoCodes) {
-    const actualCount = await Booking.countDocuments({ promoCode: promo._id });
+    const actualCount = await Booking.countDocuments({ 
+      promoCode: promo._id, 
+      status: 'confirmed' 
+    });
     
     await this.findByIdAndUpdate(promo._id, {
       usedCount: actualCount,

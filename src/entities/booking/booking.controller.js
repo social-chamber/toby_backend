@@ -319,7 +319,13 @@ export const getBookingByEmail = async (req, res) => {
 
     const bookings = await Booking.find({ "user.email": email })
       .populate('room')
-      .populate('service');
+      .populate({
+          path: 'service',
+          populate: {
+              path: 'category',
+              model: 'Category'
+          }
+      });
 
     if (bookings.length === 0) {
       return generateResponse(res, 404, false, "No bookings found for this email");
