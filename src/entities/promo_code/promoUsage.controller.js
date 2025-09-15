@@ -385,6 +385,8 @@ export const exportPromoUsageData = async (req, res) => {
         'Booking Date',
         'Time Slots',
         'Total Amount',
+        'Promo Email Status',
+        'Promo Email Sent At',
         'Created At'
       ]
     ];
@@ -403,6 +405,8 @@ export const exportPromoUsageData = async (req, res) => {
         booking.date.toISOString().split('T')[0],
         booking.timeSlots?.map(slot => `${slot.start}-${slot.end}`).join(', ') || '',
         booking.total || '',
+        booking.promoCodeEmailStatus || 'not_sent',
+        booking.promoCodeEmailSentAt ? booking.promoCodeEmailSentAt.toISOString() : '',
         booking.createdAt.toISOString()
       ]);
     });

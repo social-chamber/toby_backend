@@ -14,8 +14,9 @@ import Booking from '../entities/booking/booking.model.js';
  * @param {Object} promoData - Promo code data
  * @param {Object} originalAmount - Original booking amount before discount
  * @param {Object} discountedAmount - Final amount after discount
+ * @param {Object} bookingId - Booking ID to update email tracking status
  */
-export const sendPromoCodeUsageNotifications = async (bookingData, promoData, originalAmount, discountedAmount) => {
+export const sendPromoCodeUsageNotifications = async (bookingData, promoData, originalAmount, discountedAmount, bookingId = null) => {
   try {
     const savings = (originalAmount - discountedAmount).toFixed(2);
     
@@ -88,23 +89,42 @@ export const sendPromoCodeUsageNotifications = async (bookingData, promoData, or
       })
     ]);
 
-    // Log results
-    if (userEmailResult.status === 'fulfilled' && userEmailResult.value.success) {
+    // Log results and update booking with email tracking
+    const userNotificationSent = userEmailResult.status === 'fulfilled' && userEmailResult.value.success;
+    const adminNotificationSent = adminEmailResult.status === 'fulfilled' && adminEmailResult.value.success;
+
+    if (userNotificationSent) {
       console.log(`✅ Promo code usage notification sent to user: ${bookingData.user.email}`);
     } else {
       console.error(`❌ Failed to send promo code notification to user:`, userEmailResult.reason || userEmailResult.value?.error);
     }
 
-    if (adminEmailResult.status === 'fulfilled' && adminEmailResult.value.success) {
+    if (adminNotificationSent) {
       console.log(`✅ Promo code usage notification sent to admin`);
     } else {
       console.error(`❌ Failed to send promo code notification to admin:`, adminEmailResult.reason || adminEmailResult.value?.error);
     }
 
+    // Update booking with promo code email tracking status
+    if (bookingId) {
+      try {
+        const updateData = {
+          promoCodeEmailStatus: userNotificationSent ? 'sent' : 'failed',
+          promoCodeEmailSentAt: userNotificationSent ? new Date() : null,
+          promoCodeEmailMessageId: userNotificationSent ? userEmailResult.value.messageId : null
+        };
+        
+        await Booking.findByIdAndUpdate(bookingId, updateData);
+        console.log(`✅ Updated booking ${bookingId} with promo code email tracking status: ${updateData.promoCodeEmailStatus}`);
+      } catch (updateError) {
+        console.error(`❌ Failed to update booking ${bookingId} with promo code email tracking:`, updateError.message);
+      }
+    }
+
     return {
       success: true,
-      userNotificationSent: userEmailResult.status === 'fulfilled' && userEmailResult.value.success,
-      adminNotificationSent: adminEmailResult.status === 'fulfilled' && adminEmailResult.value.success,
+      userNotificationSent,
+      adminNotificationSent,
       userEmailResult: userEmailResult.status === 'fulfilled' ? userEmailResult.value : null,
       adminEmailResult: adminEmailResult.status === 'fulfilled' ? adminEmailResult.value : null
     };
@@ -217,7 +237,11 @@ export const getPromoCodeUsageStats = async (filters = {}, pagination = { page: 
         date: booking.date,
         timeSlots: booking.timeSlots,
         total: booking.total,
-        createdAt: booking.createdAt
+        createdAt: booking.createdAt,
+        // Email tracking information
+        promoCodeEmailStatus: booking.promoCodeEmailStatus || 'not_sent',
+        promoCodeEmailSentAt: booking.promoCodeEmailSentAt,
+        promoCodeEmailMessageId: booking.promoCodeEmailMessageId
       })),
       totalCount,
       totalSavings: totalSavings.toFixed(2),

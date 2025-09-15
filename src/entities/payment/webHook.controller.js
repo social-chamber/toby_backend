@@ -2,7 +2,7 @@ import Stripe from 'stripe';
 import Booking from '../booking/booking.model.js';
 import { Payment } from './payment.model.js';
 import emailService from '../../lib/emailService.js';
-import bookingConfirmationTemplate from '../../lib/payment_success_template.js';
+import { bookingConfirmedTemplate } from '../../lib/emailTemplates.js';
 
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
@@ -86,7 +86,7 @@ export const stripeWebhook = async (req, res) => {
             const pricePerSlot = (service.pricePerSlot || 0) + 1; // Add $1 to match frontend display
             const originalAmount = pricePerSlot * booking.timeSlots.length * booking.user.numberOfPeople;
             
-            await sendPromoCodeUsageNotifications(booking, updatedPromo, originalAmount, booking.total);
+            await sendPromoCodeUsageNotifications(booking, updatedPromo, originalAmount, booking.total, booking._id);
             console.log(`✅ Promo code usage notifications sent for booking ${booking._id}`);
           } catch (notificationError) {
             console.error(`❌ Failed to send promo code notifications for booking ${booking._id}:`, notificationError.message);
@@ -109,6 +109,12 @@ export const stripeWebhook = async (req, res) => {
       // Import payment success template
       const { paymentSuccessTemplate } = await import('../../lib/emailTemplates.js');
       
+      // Format time slots for email display
+      const formatTimeSlots = (slots) => {
+        if (!Array.isArray(slots) || slots.length === 0) return 'N/A';
+        return slots.map(slot => `${slot.start} - ${slot.end}`).join(', ');
+      };
+
       // Prepare email payload
       const emailHtml = paymentSuccessTemplate({
         name: `${booking.user.firstName || ''} ${booking.user.lastName || ''}`.trim() || 'Customer',
@@ -116,7 +122,7 @@ export const stripeWebhook = async (req, res) => {
         category: booking?.service?.category?.name || 'N/A',
         room: booking?.room?.title || booking?.room?.name || 'N/A',
         service: booking?.service?.name || 'N/A',
-        time: booking.timeSlots || [],
+        time: formatTimeSlots(booking.timeSlots),
         bookingId: booking._id,
         date: formatDate(booking.date)
       });
@@ -128,6 +134,27 @@ export const stripeWebhook = async (req, res) => {
         html: emailHtml,
         priority: 'high'
       });
+
+      // Send comprehensive booking status notification
+      try {
+        const { sendBookingStatusUpdateNotification } = await import('../../lib/bookingStatusNotificationService.js');
+        
+        // Calculate original amount for promo code savings display
+        let originalAmount = null;
+        if (booking.promoCode) {
+          const service = booking.service;
+          const pricePerSlot = (service.pricePerSlot || 0) + 1; // Add $1 to match frontend display
+          originalAmount = pricePerSlot * booking.timeSlots.length * booking.user.numberOfPeople;
+        }
+        
+        await sendBookingStatusUpdateNotification(booking, 'confirmed', {
+          promoData: booking.promoCode,
+          originalAmount: originalAmount
+        });
+        console.log(`✅ Booking status notification sent for booking ${booking._id}`);
+      } catch (notificationError) {
+        console.error(`❌ Failed to send booking status notification for booking ${booking._id}:`, notificationError.message);
+      }
       
       if (emailResult.success) {
         // Update booking with email confirmation details
@@ -194,13 +221,19 @@ export const stripeWebhook = async (req, res) => {
 
         const { paymentFailedTemplate } = await import('../../lib/emailTemplates.js');
 
+        // Format time slots for email display
+        const formatTimeSlots = (slots) => {
+          if (!Array.isArray(slots) || slots.length === 0) return 'N/A';
+          return slots.map(slot => `${slot.start} - ${slot.end}`).join(', ');
+        };
+
         const emailHtml = paymentFailedTemplate({
           name: `${booking.user.firstName || ''} ${booking.user.lastName || ''}`.trim() || 'Customer',
           email: booking.user.email || '',
           category: booking?.service?.category?.name || 'N/A',
           room: booking?.room?.title || booking?.room?.name || 'N/A',
           service: booking?.service?.name || 'N/A',
-          time: booking.timeSlots || [],
+          time: formatTimeSlots(booking.timeSlots),
           bookingId: booking._id,
           date: formatDate(booking.date)
         });

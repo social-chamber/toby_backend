@@ -1,6 +1,6 @@
 import { generateResponse } from '../../lib/responseFormate.js';
 import emailService from '../../lib/emailService.js';
-import bookingConfirmationTemplate from '../../lib/payment_success_template.js';
+import { bookingConfirmedTemplate } from '../../lib/emailTemplates.js';
 import { checkAvailabilityService, createBookingService } from './booking.service.js';
 import Booking from './booking.model.js';
 import * as bookingService from './booking.service.js';
@@ -67,15 +67,46 @@ export const createBookingController = async (req, res) => {
           return `${day}/${month}/${year}`;
         };
 
-        const emailHtml = bookingConfirmationTemplate({
-          name: `${booking.user.firstName} ${booking.user.lastName}`,
-          email: booking.user.email,
-          category: booking?.service?.category?.name || '',
-          room: booking?.room?.title || '',
-          service: booking?.service?.name || '',
-          time: booking.timeSlots,
-          bookingId: booking._id,
-          date: formatDate(booking.date)
+        // Format time slots for email display
+        const formatTimeSlots = (slots) => {
+          if (!Array.isArray(slots) || slots.length === 0) return 'N/A';
+          return slots.map(slot => `${slot.start} - ${slot.end}`).join(', ');
+        };
+
+        // Populate booking with service and room data for email
+        const populatedBooking = await Booking.findById(booking._id)
+          .populate({
+            path: 'service',
+            populate: {
+              path: 'category',
+              model: 'Category'
+            }
+          })
+          .populate('room');
+
+        // Calculate original amount for promo code savings display
+        let originalAmount = null;
+        let savings = 'N/A';
+        if (populatedBooking.promoCode) {
+          const service = populatedBooking.service;
+          const pricePerSlot = (service.pricePerSlot || 0) + 1; // Add $1 to match frontend display
+          originalAmount = pricePerSlot * populatedBooking.timeSlots.length * populatedBooking.user.numberOfPeople;
+          savings = (originalAmount - populatedBooking.total).toFixed(2);
+        }
+
+        const emailHtml = bookingConfirmedTemplate({
+          name: `${populatedBooking.user.firstName} ${populatedBooking.user.lastName}`,
+          email: populatedBooking.user.email,
+          category: populatedBooking?.service?.category?.name || '',
+          room: populatedBooking?.room?.title || '',
+          service: populatedBooking?.service?.name || '',
+          time: formatTimeSlots(populatedBooking.timeSlots),
+          bookingId: populatedBooking._id,
+          date: formatDate(populatedBooking.date),
+          total: populatedBooking.total?.toFixed(2) || 'N/A',
+          promoCode: populatedBooking.promoCode?.code || null,
+          originalAmount: originalAmount?.toFixed(2) || 'N/A',
+          savings: savings
         });
 
         const emailResult = await emailService.sendEmailWithRetry({
@@ -84,6 +115,27 @@ export const createBookingController = async (req, res) => {
           html: emailHtml,
           priority: 'high'
         });
+
+        // Send comprehensive booking status notification
+        try {
+          const { sendBookingStatusUpdateNotification } = await import('../../lib/bookingStatusNotificationService.js');
+          
+          // Calculate original amount for promo code savings display
+          let originalAmount = null;
+          if (populatedBooking.promoCode) {
+            const service = populatedBooking.service;
+            const pricePerSlot = (service.pricePerSlot || 0) + 1; // Add $1 to match frontend display
+            originalAmount = pricePerSlot * populatedBooking.timeSlots.length * populatedBooking.user.numberOfPeople;
+          }
+          
+          await sendBookingStatusUpdateNotification(populatedBooking, 'confirmed', {
+            promoData: populatedBooking.promoCode,
+            originalAmount: originalAmount
+          });
+          console.log(`✅ Booking status notification sent for manual booking ${populatedBooking._id}`);
+        } catch (notificationError) {
+          console.error(`❌ Failed to send booking status notification for manual booking ${populatedBooking._id}:`, notificationError.message);
+        }
         
         if (emailResult.success) {
           booking.confirmationEmailSentAt = new Date();
@@ -335,5 +387,15 @@ export const getBookingByEmail = async (req, res) => {
   } catch (error) {
     console.error("Error getting bookings by email:", error);
     return generateResponse(res, 500, false, "Server error", error.message);
+  }
+};
+
+export const cleanupExpiredBookings = async (req, res) => {
+  try {
+    const result = await bookingService.cleanupExpiredBookings();
+    generateResponse(res, 200, true, "Expired bookings cleaned up successfully", result);
+  } catch (error) {
+    console.error("Error cleaning up expired bookings:", error);
+    generateResponse(res, 500, false, "Error cleaning up expired bookings", error.message);
   }
 };

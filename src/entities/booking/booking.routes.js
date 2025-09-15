@@ -7,6 +7,7 @@ import {
   createBookingController,
   getBookingStats,
   getBookingByEmail,
+  cleanupExpiredBookings,
 } from './booking.controller.js';
 import { verifyToken, adminMiddleware , optionalVerifyToken } from '../../core/middlewares/authMiddleware.js';
 import { checkAvailabilityController } from './booking.controller.js';
@@ -26,6 +27,8 @@ router.get('/stats', getBookingStats);
 router.get('/by-email', getBookingByEmail);              
 
 router.post('/check-availability', checkAvailabilityController);  
+
+router.post('/cleanup-expired', cleanupExpiredBookings);  
 
 router
   .route('/:id')

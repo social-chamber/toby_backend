@@ -84,7 +84,15 @@ const bookingSchema = new Schema({
     holdCreatedAt: { type: Date, default: null },
     holdReleasedAt: { type: Date, default: null },
     holdReleaseReason: { type: String, default: null },
-    confirmedAt: { type: Date, default: null }
+    confirmedAt: { type: Date, default: null },
+    // Promo code email tracking
+    promoCodeEmailSentAt: { type: Date, default: null },
+    promoCodeEmailMessageId: { type: String, default: null },
+    promoCodeEmailStatus: { 
+        type: String, 
+        enum: ['not_sent', 'sent', 'failed'], 
+        default: 'not_sent' 
+    }
 }, 
 {
     timestamps: true
