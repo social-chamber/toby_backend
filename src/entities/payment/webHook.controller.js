@@ -77,20 +77,8 @@ export const stripeWebhook = async (req, res) => {
           const updatedPromo = await incrementPromoUsageService(booking.promoCode);
           console.log(`✅ Promo code usage incremented for booking ${booking._id}`);
 
-          // Send promo code usage notifications
-          try {
-            const { sendPromoCodeUsageNotifications } = await import('../../lib/promoCodeNotificationService.js');
-            
-            // Calculate original amount (before discount)
-            const service = booking.service;
-            const pricePerSlot = (service.pricePerSlot || 0) + 1; // Add $1 to match frontend display
-            const originalAmount = pricePerSlot * booking.timeSlots.length * booking.user.numberOfPeople;
-            
-            await sendPromoCodeUsageNotifications(booking, updatedPromo, originalAmount, booking.total, booking._id);
-            console.log(`✅ Promo code usage notifications sent for booking ${booking._id}`);
-          } catch (notificationError) {
-            console.error(`❌ Failed to send promo code notifications for booking ${booking._id}:`, notificationError.message);
-          }
+        // Note: Promo code notification is now included in the booking confirmation email above
+        // No need for separate promo code notification email
         } catch (error) {
           console.error(`❌ Failed to increment promo usage for booking ${booking._id}:`, error.message);
         }
@@ -135,26 +123,22 @@ export const stripeWebhook = async (req, res) => {
         priority: 'high'
       });
 
-      // Send comprehensive booking status notification
-      try {
-        const { sendBookingStatusUpdateNotification } = await import('../../lib/bookingStatusNotificationService.js');
-        
-        // Calculate original amount for promo code savings display
-        let originalAmount = null;
-        if (booking.promoCode) {
-          const service = booking.service;
-          const pricePerSlot = (service.pricePerSlot || 0) + 1; // Add $1 to match frontend display
-          originalAmount = pricePerSlot * booking.timeSlots.length * booking.user.numberOfPeople;
+      // Update promo code email tracking status if promo code was used
+      if (booking.promoCode && emailResult.success) {
+        try {
+          await Booking.findByIdAndUpdate(booking._id, {
+            promoCodeEmailStatus: 'sent',
+            promoCodeEmailSentAt: new Date(),
+            promoCodeEmailMessageId: emailResult.messageId
+          });
+          console.log(`✅ Updated booking ${booking._id} with promo code email tracking status: sent`);
+        } catch (updateError) {
+          console.error(`❌ Failed to update booking ${booking._id} with promo code email tracking:`, updateError.message);
         }
-        
-        await sendBookingStatusUpdateNotification(booking, 'confirmed', {
-          promoData: booking.promoCode,
-          originalAmount: originalAmount
-        });
-        console.log(`✅ Booking status notification sent for booking ${booking._id}`);
-      } catch (notificationError) {
-        console.error(`❌ Failed to send booking status notification for booking ${booking._id}:`, notificationError.message);
       }
+
+      // Note: Booking status notification is now included in the booking confirmation email above
+      // No need for separate booking status notification email
       
       if (emailResult.success) {
         // Update booking with email confirmation details
