@@ -349,6 +349,15 @@ export const updateBooking = async (id, status, reason = null) => {
         
         await sendBookingStatusUpdateNotification(booking, status, notificationOptions);
         console.log(`✅ Booking status notification sent for booking ${booking._id} - Status: ${status}`);
+        
+        // Update promo code email tracking status if booking is confirmed and has promo code
+        if (status === 'confirmed' && booking.promoCode) {
+            booking.promoCodeEmailStatus = 'sent';
+            booking.promoCodeEmailSentAt = new Date();
+            booking.promoCodeEmailMessageId = `admin-confirmed-${Date.now()}`;
+            await booking.save();
+            console.log(`✅ Updated booking ${booking._id} with promo code email tracking status: sent`);
+        }
     } catch (notificationError) {
         console.error(`❌ Failed to send booking status notification for booking ${booking._id}:`, notificationError.message);
     }

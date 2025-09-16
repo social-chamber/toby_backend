@@ -140,7 +140,16 @@ export const createBookingController = async (req, res) => {
         if (emailResult.success) {
           booking.confirmationEmailSentAt = new Date();
           booking.confirmationEmailMessageId = emailResult.messageId;
+          
+          // Update promo code email tracking status if promo code was used
+          if (populatedBooking.promoCode) {
+            booking.promoCodeEmailStatus = 'sent';
+            booking.promoCodeEmailSentAt = new Date();
+            booking.promoCodeEmailMessageId = emailResult.messageId;
+          }
+          
           await booking.save();
+          console.log(`✅ Updated booking ${booking._id} with email tracking status`);
         }
       } catch (e) {
         console.error('Manual booking confirmation email failed:', e?.message || e);
