@@ -31,7 +31,8 @@ export const verificationCodeTemplate = ({
 // Default export for backward compatibility
 export default verificationCodeTemplate;
 
-export const bookingCreationTemplate = ({
+// Template for pending bookings (before payment confirmation)
+export const bookingPendingTemplate = ({
   name = 'Customer',
   email = 'N/A',
   category = 'N/A',
@@ -39,14 +40,17 @@ export const bookingCreationTemplate = ({
   service = 'N/A',
   time = [],
   bookingId = 'N/A',
-  date = 'N/A'
+  date = 'N/A',
+  promoCode = null,
+  total = 'N/A'
 }) => `
   <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; border: 1px solid #ddd; padding: 20px; border-radius: 10px; background-color: #f9f9f9;">
     <div style="text-align: center;">
-      <div style="font-size: 48px; color: #ffa500;">📋</div>
-      <h2 style="color: #333;">Booking Details</h2>
-      <p style="font-size: 14px; color: #666;">Thank you for your booking. Your payment has been processed and your booking is being reviewed by our team.</p>
+      <div style="font-size: 48px; color: #ffa500;">⏳</div>
+      <h2 style="color: #ffa500;">Booking Created - Payment Required</h2>
+      <p style="font-size: 14px; color: #666;">Your booking has been created but payment is required to confirm it.</p>
     </div>
+    
     <h3 style="border-bottom: 1px solid #ccc; padding-bottom: 10px; color: #222;">Booking Details</h3>
     <table style="width: 100%; font-size: 14px; color: #333;">
       <tr><td style="padding: 8px 0;"><strong>Booking ID:</strong></td><td>${bookingId}</td></tr>
@@ -57,19 +61,32 @@ export const bookingCreationTemplate = ({
       <tr><td style="padding: 8px 0;"><strong>Service:</strong></td><td>${service}</td></tr>
       <tr><td style="padding: 8px 0;"><strong>Time Slots:</strong></td><td>${time || 'N/A'}</td></tr>
       <tr><td style="padding: 8px 0;"><strong>Booking Date:</strong></td><td>${date}</td></tr>
-      <tr><td style="padding: 8px 0;"><strong>Status:</strong></td><td style="color: #ffa500; font-weight: bold;">Under Review</td></tr>
+      <tr><td style="padding: 8px 0;"><strong>Total Amount:</strong></td><td>$${total}</td></tr>
+      <tr><td style="padding: 8px 0;"><strong>Status:</strong></td><td style="color: #ffa500; font-weight: bold;">Pending Payment ⏳</td></tr>
     </table>
-    <div style="margin-top: 20px; padding: 15px; background-color: #d4edda; border: 1px solid #c3e6cb; border-radius: 8px; color: #155724; font-size: 14px;"></div>
-      <strong>Important:</strong> Please use code <strong style="font-size: 16px; background-color: #fff; padding: 4px 8px; border-radius: 4px; border: 2px solid #28a745;">3388#</strong> to access the main entrance door.
+
+    ${promoCode ? `
+    <div style="margin: 15px 0; padding: 15px; background-color: #fff3cd; border: 1px solid #ffeaa7; border-radius: 8px; color: #856404; font-size: 14px;">
+      <strong>Promo Code Applied:</strong> ${promoCode} will be applied once payment is completed.
     </div>
-    <div style="margin-top: 15px; padding: 15px; background-color: #fff3cd; border: 1px solid #ffeeba; border-radius: 8px; color: #856404; font-size: 14px;">
-      <strong>Next Step:</strong> Please complete your payment to confirm your booking. You will receive another email once payment is successful.
+    ` : ''}
+
+    <div style="margin-top: 20px; padding: 15px; background-color: #fff3cd; border: 1px solid #ffeaa7; border-radius: 8px; color: #856404; font-size: 14px;">
+      <strong>⚠️ Important:</strong> This booking is not yet confirmed. Please complete payment to secure your time slot.
     </div>
+    
+    <div style="margin-top: 15px; padding: 15px; background-color: #d1ecf1; border: 1px solid #bee5eb; border-radius: 8px; color: #0c5460; font-size: 14px;">
+      <strong>Next Steps:</strong> Complete your payment to confirm this booking. You will receive a confirmation email with access details once payment is successful.
+    </div>
+    
     <footer style="border-top: 1px solid #ddd; padding-top: 10px; margin-top: 20px; text-align: center; font-size: 12px; color: #aaa;">
       &copy; 2025 Toby Booking System. All rights reserved.
     </footer>
   </div>
 `;
+
+// Legacy template - kept for backward compatibility but renamed
+export const bookingCreationTemplate = bookingPendingTemplate;
 
 export const paymentFailedTemplate = ({
   name = 'Customer',

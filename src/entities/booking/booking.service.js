@@ -42,17 +42,18 @@ export const createBookingService = async (data) => {
         }
     }
 
-    // ADDITIONAL SAFETY CHECK: Double-verify no confirmed bookings exist for these exact time slots
+    // ADDITIONAL SAFETY CHECK: Double-verify no valid bookings exist for these exact time slots
     const safetyCheckDate = new Date(date);
     const safetyStartOfDay = new Date(safetyCheckDate);
     safetyStartOfDay.setHours(0, 0, 0, 0);
     const safetyEndOfDay = new Date(safetyCheckDate);
     safetyEndOfDay.setHours(23, 59, 59, 999);
 
+    const now = new Date();
     const conflictingBookings = await Booking.find({
         date: { $gte: safetyStartOfDay, $lte: safetyEndOfDay },
         room: roomId,
-        status: 'confirmed',
+        status: { $in: ['confirmed', 'pending', 'hold'] },
         timeSlots: {
             $elemMatch: {
                 $or: timeSlots.map(slot => ({
@@ -63,7 +64,10 @@ export const createBookingService = async (data) => {
         }
     });
 
-    if (conflictingBookings.length > 0) {
+    // All conflicting bookings are valid since pending bookings don't expire
+    const validConflictingBookings = conflictingBookings;
+
+    if (validConflictingBookings.length > 0) {
         const e = new Error(`Time slots are already booked by confirmed reservations. Please select different times.`);
         e.statusCode = 409;
         e.code = 'SLOT_CONFLICT';
@@ -142,20 +146,19 @@ export const createBookingService = async (data) => {
         status: 'pending',
         paymentStatus: 'pending',
         promoCode: appliedPromo || undefined,
-        expiresAt: new Date(Date.now() + 15 * 60 * 1000), // 15 minutes to complete payment
+        expiresAt: null, // No expiration for pending bookings
         freeSlotsAwarded: freeSlotsShouldHave > freeSlotsAwarded ? freeSlotsAwarded + 1 : freeSlotsAwarded
     });
 
-    // Clean up expired pending bookings to free up time slots
-    await cleanupExpiredBookings();
+    // Note: No automatic cleanup since bookings don't expire
 
     // Note: Promo code usage count is incremented in the payment webhook when payment is successful
     // This prevents double counting and ensures usage is only counted for paid bookings
 
-    // Send booking creation email
+    // Send booking pending email (before payment)
     try {
         const { default: emailService } = await import('../../lib/emailService.js');
-        const { bookingCreationTemplate } = await import('../../lib/emailTemplates.js');
+        const { bookingPendingTemplate } = await import('../../lib/emailTemplates.js');
         
         const formatDate = (date) => {
             const d = new Date(date);
@@ -175,7 +178,15 @@ export const createBookingService = async (data) => {
         const Room = (await import('../room/room.model.js')).default;
         const room = await Room.findById(roomId);
 
-        const emailHtml = bookingCreationTemplate({
+        // Get promo code data if applied
+        let promoCodeData = null;
+        if (appliedPromo) {
+            const PromoCode = (await import('../promo_code/promo_code.model.js')).default;
+            const promo = await PromoCode.findById(appliedPromo);
+            promoCodeData = promo?.code || null;
+        }
+
+        const emailHtml = bookingPendingTemplate({
             name: `${user.firstName} ${user.lastName}`,
             email: user.email,
             category: service?.category?.name || 'N/A',
@@ -183,12 +194,14 @@ export const createBookingService = async (data) => {
             service: service?.name || 'N/A',
             time: formatTimeSlots(timeSlots),
             bookingId: booking._id,
-            date: formatDate(booking.date)
+            date: formatDate(booking.date),
+            promoCode: promoCodeData,
+            total: total.toFixed(2)
         });
 
         const emailResult = await emailService.sendEmailWithRetry({
             to: user.email,
-            subject: 'Booking Created - Payment Pending | Toby',
+            subject: 'Booking Created - Payment Required | Toby',
             html: emailHtml,
             priority: 'high'
         });
@@ -197,12 +210,12 @@ export const createBookingService = async (data) => {
             booking.creationEmailSentAt = new Date();
             booking.creationEmailMessageId = emailResult.messageId;
             await booking.save();
-            console.log(`✅ Booking creation email sent for booking ${booking._id} to ${user.email}`);
+            console.log(`✅ Booking pending email sent for booking ${booking._id} to ${user.email}`);
         } else {
-            console.error(`❌ Failed to send booking creation email for booking ${booking._id}:`, emailResult.error);
+            console.error(`❌ Failed to send booking pending email for booking ${booking._id}:`, emailResult.error);
         }
     } catch (error) {
-        console.error('❌ Error sending booking creation email:', error.message);
+        console.error('❌ Error sending booking pending email:', error.message);
         // Don't fail booking creation if email fails
     }
 
@@ -427,19 +440,22 @@ export const checkAvailabilityService = async (date, serviceId, roomId) => {
     const endOfDay = new Date(date);
     endOfDay.setHours(23, 59, 59, 999);
 
-    // Prevent cross-category clashes by checking only CONFIRMED bookings for the same room on the date
-    // Pending bookings should not block time slots until payment is completed
+    // Check for ALL bookings that could block slots (including pending with valid expiration)
+    const now = new Date();
     const existingBookings = await Booking.find({
         date: { $gte: startOfDay, $lte: endOfDay },
         room: roomId,
-        status: 'confirmed' // Only confirmed (paid) bookings block time slots
+        status: { $in: ['confirmed', 'pending', 'hold'] }
     });
 
-    if (existingBookings.length === 0) {
+    // All bookings are valid since pending bookings don't expire
+    const validBookings = existingBookings;
+
+    if (validBookings.length === 0) {
         return { available: true, slots: slots.map(slot => ({ ...slot, available: true })) };
     }
 
-    const bookedSlots = existingBookings.flatMap(b => b.timeSlots);
+    const bookedSlots = validBookings.flatMap(b => b.timeSlots);
 
     const availableSlots = slots.map(slot => {
         const slotStartMin = timeToMinutes(slot.start);
@@ -457,29 +473,13 @@ export const checkAvailabilityService = async (date, serviceId, roomId) => {
     return { available: true, slots: availableSlots };
 };
 
-// Clean up expired pending bookings
+// Cleanup system for expired pending bookings (disabled since bookings don't expire)
 export const cleanupExpiredBookings = async () => {
     try {
-        const expiredBookings = await Booking.find({
-            status: 'pending',
-            expiresAt: { $lt: new Date() }
-        });
-
-        if (expiredBookings.length > 0) {
-            await Booking.updateMany(
-                { 
-                    status: 'pending',
-                    expiresAt: { $lt: new Date() }
-                },
-                { 
-                    status: 'cancelled',
-                    paymentStatus: 'failed'
-                }
-            );
-            
-            console.log(`✅ Cleaned up ${expiredBookings.length} expired pending bookings`);
-        }
+        // Since bookings no longer expire, this function is kept for backward compatibility
+        // but performs no cleanup operations
+        console.log('ℹ️ Cleanup skipped - bookings no longer expire');
     } catch (error) {
-        console.error('❌ Error cleaning up expired bookings:', error.message);
+        console.error('❌ Error in cleanup function:', error.message);
     }
 };
