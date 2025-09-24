@@ -2,7 +2,6 @@ import Stripe from 'stripe';
 import Booking from '../booking/booking.model.js';
 import { Payment } from './payment.model.js';
 import emailService from '../../lib/emailService.js';
-import { bookingConfirmedTemplate } from '../../lib/emailTemplates.js';
 
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
@@ -52,8 +51,7 @@ export const stripeWebhook = async (req, res) => {
       const booking = await Booking.findByIdAndUpdate(
         payment.booking,
         {
-          status: 'confirmed',
-          paymentStatus: 'paid',
+          paymentStatus: 'paid', // Only update payment status, booking is already confirmed
         },
         { new: true }
       )
@@ -74,7 +72,7 @@ export const stripeWebhook = async (req, res) => {
       if (booking.promoCode) {
         try {
           const { incrementPromoUsageService } = await import('../promo_code/promo_code.service.js');
-          const updatedPromo = await incrementPromoUsageService(booking.promoCode);
+          await incrementPromoUsageService(booking.promoCode);
           console.log(`✅ Promo code usage incremented for booking ${booking._id}`);
 
         // Note: Promo code notification is now included in the booking confirmation email above

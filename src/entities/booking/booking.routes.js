@@ -8,9 +8,10 @@ import {
   getBookingStats,
   getBookingByEmail,
   cleanupExpiredBookings,
+  cleanupFailedPaymentBookings,
+  checkAvailabilityController,
 } from './booking.controller.js';
 import { verifyToken, adminMiddleware , optionalVerifyToken } from '../../core/middlewares/authMiddleware.js';
-import { checkAvailabilityController } from './booking.controller.js';
 
 
 const router = express.Router();
@@ -29,6 +30,7 @@ router.get('/by-email', getBookingByEmail);
 router.post('/check-availability', checkAvailabilityController);  
 
 router.post('/cleanup-expired', cleanupExpiredBookings);  
+router.post('/cleanup-failed-payments', cleanupFailedPaymentBookings);  
 
 router
   .route('/:id')

@@ -50,10 +50,9 @@ export const createBookingController = async (req, res) => {
 
     
     // If the user is an admin, set manual booking flags
-    // and update status and payment status
+    // and update payment status to paid (skip payment for admin bookings)
     if(req.user?.role === 'ADMIN') {
       booking.isManualBooking = true; 
-      booking.status = "confirmed" ,
       booking.paymentStatus = "paid"
       await booking.save();
 
@@ -406,5 +405,15 @@ export const cleanupExpiredBookings = async (req, res) => {
   } catch (error) {
     console.error("Error cleaning up expired bookings:", error);
     generateResponse(res, 500, false, "Error cleaning up expired bookings", error.message);
+  }
+};
+
+export const cleanupFailedPaymentBookings = async (req, res) => {
+  try {
+    await bookingService.cleanupFailedPaymentBookings();
+    generateResponse(res, 200, true, "Failed payment bookings cleaned up successfully", null);
+  } catch (error) {
+    console.error("Error cleaning up failed payment bookings:", error);
+    generateResponse(res, 500, false, "Error cleaning up failed payment bookings", error.message);
   }
 };
