@@ -8,7 +8,7 @@ import {
   getBookingStats,
   getBookingByEmail,
   cleanupExpiredBookings,
-  cleanupFailedPaymentBookings,
+  cleanupExpiredHoldsAndFailedPayments,
   checkAvailabilityController,
 } from './booking.controller.js';
 import { verifyToken, adminMiddleware , optionalVerifyToken } from '../../core/middlewares/authMiddleware.js';
@@ -30,7 +30,7 @@ router.get('/by-email', getBookingByEmail);
 router.post('/check-availability', checkAvailabilityController);  
 
 router.post('/cleanup-expired', cleanupExpiredBookings);  
-router.post('/cleanup-failed-payments', cleanupFailedPaymentBookings);  
+router.post('/cleanup-holds', cleanupExpiredHoldsAndFailedPayments);  
 
 router
   .route('/:id')

@@ -39,7 +39,7 @@ const bookingSchema = new Schema({
     },
     status: {
         type: String,
-        enum: ['pending', 'hold', 'confirmed', 'cancelled','refunded'],
+        enum: ['pending', 'confirmed', 'cancelled','refunded'],
         default: 'pending'
     },
     stripeSessionId: {
@@ -80,10 +80,6 @@ const bookingSchema = new Schema({
     originalServicePrice: { type: Number, default: null }, // Store original service pricePerSlot
     priceCalculationMethod: { type: String, default: 'current' }, // 'current' or 'legacy'
     pricingDiscrepancy: { type: Number, default: 0 }, // Track any pricing discrepancies
-    holdExpiresAt: { type: Date, default: null },
-    holdCreatedAt: { type: Date, default: null },
-    holdReleasedAt: { type: Date, default: null },
-    holdReleaseReason: { type: String, default: null },
     confirmedAt: { type: Date, default: null },
     // Promo code email tracking
     promoCodeEmailSentAt: { type: Date, default: null },

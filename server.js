@@ -3,7 +3,7 @@ import cron from 'node-cron';
 import logger from './src/core/config/logger.js';
 import app from './src/app.js';
 import { mongoURI, port } from './src/core/config/config.js';
-import { cleanupFailedPaymentBookings } from './src/entities/booking/booking.service.js';
+import { cleanupExpiredHoldsAndFailedPayments } from './src/entities/booking/booking.service.js';
 mongoose
   .connect(mongoURI)
   .then(() => {
@@ -22,16 +22,16 @@ mongoose
 // Initialize scheduled jobs for cleanup
 function initializeScheduledJobs() {
   try {
-    // Schedule cleanup for failed payment bookings every 5 minutes
-    cron.schedule('*/5 * * * *', async () => {
+    // Schedule cleanup for failed payments every 30 minutes
+    cron.schedule('*/30 * * * *', async () => {
       try {
-        await cleanupFailedPaymentBookings();
+        await cleanupExpiredHoldsAndFailedPayments();
       } catch (error) {
         logger.error('❌ Failed to run payment cleanup:', error.message);
       }
     });
     
-    logger.info('✅ Scheduled jobs initialized - Payment cleanup every 5 minutes');
+    logger.info('✅ Scheduled jobs initialized - Payment cleanup every 30 minutes');
   } catch (error) {
     logger.error('❌ Failed to initialize scheduled jobs:', error.message);
   }

@@ -11,8 +11,10 @@ export const stripeWebhook = async (req, res) => {
   const sig = req.headers['stripe-signature'];
   let event;
   
+  console.log('🔔 Stripe webhook received:', req.headers['stripe-signature'] ? 'Signature present' : 'No signature');
+  
   if (!sig) {
-    console.error('No Stripe signature found in headers.');
+    console.error('❌ No Stripe signature found in headers.');
     return res.status(400).send('Webhook Error: No signature found');
   }
 
@@ -22,8 +24,9 @@ export const stripeWebhook = async (req, res) => {
       sig,
       process.env.STRIPE_WEBHOOK_SECRET
     );
+    console.log('✅ Webhook signature verified. Event type:', event.type);
   } catch (err) {
-    console.error('Webhook signature verification failed.', err.message);
+    console.error('❌ Webhook signature verification failed:', err.message);
     return res.status(400).send(`Webhook Error: ${err.message}`);
   }
 
@@ -31,8 +34,11 @@ export const stripeWebhook = async (req, res) => {
     switch (event.type) {
 
     case 'checkout.session.completed': {
+      console.log('💳 Processing checkout.session.completed event');
       
       const session = event.data.object;
+      console.log('📋 Session ID:', session.id);
+      console.log('💰 Payment Intent:', session.payment_intent);
 
       const payment = await Payment.findOneAndUpdate(
         { stripeSessionId: session.id },
@@ -44,14 +50,17 @@ export const stripeWebhook = async (req, res) => {
       );
 
       if (!payment) {
-        console.warn('Payment not found for session:', session.id);
+        console.warn('❌ Payment not found for session:', session.id);
         break;
       }
+      console.log('✅ Payment found and updated:', payment._id);
 
       const booking = await Booking.findByIdAndUpdate(
         payment.booking,
         {
-          paymentStatus: 'paid', // Only update payment status, booking is already confirmed
+          status: 'confirmed', // Confirm booking after successful payment
+          paymentStatus: 'paid',
+          confirmedAt: new Date()
         },
         { new: true }
       )
@@ -64,9 +73,10 @@ export const stripeWebhook = async (req, res) => {
       })
 
       if (!booking) {
-        console.warn('Booking not found for payment:', payment._id);
+        console.warn('❌ Booking not found for payment:', payment._id);
         break;
       }
+      console.log('✅ Booking confirmed:', booking._id, 'Status:', booking.status);
 
       // Increment promo code usage count when payment is completed
       if (booking.promoCode) {
@@ -175,7 +185,8 @@ export const stripeWebhook = async (req, res) => {
         payment.booking,
         { 
           status: 'cancelled',
-          paymentStatus: 'failed'
+          paymentStatus: 'failed',
+          cancelledAt: new Date()
         },
         { new: true }
       ).populate({
@@ -309,39 +320,3 @@ export const stripeWebhook = async (req, res) => {
 
 
 
-
-      // case 'checkout.session.completed': {
-      //   const session = event.data.object;
-
-
-      //   // Update Payment status
-      //   const payment = await Payment.findOneAndUpdate(
-      //       { stripeSessionId: session.id },
-      //       {
-      //         paymentStatus: 'paid',
-      //         paymentIntentId: session.payment_intent,
-      //       },
-      //     { new: true }
-      //   );
-
-      //   // console.log("Payment found:", payment);
-
-      //   if (!payment) {
-      //     console.warn('Payment not found for session:', session.id);
-      //     break;
-      //   }
-
-      //   // Update Booking status
-      //   await Booking.findByIdAndUpdate(
-      //     payment.booking,
-      //     {
-      //       status: 'confirmed',
-      //       paymentStatus: 'paid',
-      //     },
-          
-      //     { new: true }
-      //   );
-
-      //   // console.log(`Booking ${payment.booking} confirmed via webhook`);
-      //   break;
-      // }

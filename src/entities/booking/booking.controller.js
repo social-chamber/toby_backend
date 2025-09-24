@@ -53,7 +53,9 @@ export const createBookingController = async (req, res) => {
     // and update payment status to paid (skip payment for admin bookings)
     if(req.user?.role === 'ADMIN') {
       booking.isManualBooking = true; 
-      booking.paymentStatus = "paid"
+      booking.status = "confirmed";
+      booking.paymentStatus = "paid";
+      booking.confirmedAt = new Date();
       await booking.save();
 
       // Send confirmation email to customer for manual booking
@@ -408,12 +410,12 @@ export const cleanupExpiredBookings = async (req, res) => {
   }
 };
 
-export const cleanupFailedPaymentBookings = async (req, res) => {
+export const cleanupExpiredHoldsAndFailedPayments = async (req, res) => {
   try {
-    await bookingService.cleanupFailedPaymentBookings();
-    generateResponse(res, 200, true, "Failed payment bookings cleaned up successfully", null);
+    await bookingService.cleanupExpiredHoldsAndFailedPayments();
+    generateResponse(res, 200, true, "Expired holds and failed payments cleaned up successfully", null);
   } catch (error) {
-    console.error("Error cleaning up failed payment bookings:", error);
-    generateResponse(res, 500, false, "Error cleaning up failed payment bookings", error.message);
+    console.error("Error cleaning up expired holds and failed payments:", error);
+    generateResponse(res, 500, false, "Error cleaning up expired holds and failed payments", error.message);
   }
 };

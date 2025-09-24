@@ -51,7 +51,7 @@ export const createBookingService = async (data) => {
     const conflictingBookings = await Booking.find({
         date: { $gte: safetyStartOfDay, $lte: safetyEndOfDay },
         room: roomId,
-        status: { $in: ['confirmed', 'hold'] }, // Only confirmed and hold bookings block slots
+        status: 'confirmed', // Only confirmed bookings block slots
         timeSlots: {
             $elemMatch: {
                 $or: timeSlots.map(slot => ({
@@ -62,7 +62,7 @@ export const createBookingService = async (data) => {
         }
     });
 
-    // Only confirmed and hold bookings block slots
+    // Only confirmed bookings block slots
     const validConflictingBookings = conflictingBookings;
 
     if (validConflictingBookings.length > 0) {
@@ -130,7 +130,7 @@ export const createBookingService = async (data) => {
     }
     total = parseFloat(total.toFixed(2));
 
-    // STEP 5: Create Booking
+    // STEP 5: Create Booking (will be confirmed only after payment success)
     const booking = await Booking.create({
         user: {
             ...user,
@@ -141,10 +141,9 @@ export const createBookingService = async (data) => {
         service: serviceId,
         room: roomId,
         total,
-        status: 'confirmed', // Auto-confirm available bookings for 24/7 operation
+        status: 'pending', // Will be confirmed only after payment success
         paymentStatus: 'pending',
         promoCode: appliedPromo || undefined,
-        expiresAt: null, // No expiration for confirmed bookings
         freeSlotsAwarded: freeSlotsShouldHave > freeSlotsAwarded ? freeSlotsAwarded + 1 : freeSlotsAwarded
     });
 
@@ -153,88 +152,8 @@ export const createBookingService = async (data) => {
     // Note: Promo code usage count is incremented in the payment webhook when payment is successful
     // This prevents double counting and ensures usage is only counted for paid bookings
 
-    // Send booking confirmation email (since booking is now auto-confirmed)
-    try {
-        const { default: emailService } = await import('../../lib/emailService.js');
-        const { bookingConfirmedTemplate } = await import('../../lib/emailTemplates.js');
-        
-        const formatDate = (date) => {
-            const d = new Date(date);
-            const day = String(d.getDate()).padStart(2, '0');
-            const month = String(d.getMonth() + 1).padStart(2, '0');
-            const year = d.getFullYear();
-            return `${day}/${month}/${year}`;
-        };
-
-        // Format time slots for email display
-        const formatTimeSlots = (slots) => {
-            if (!Array.isArray(slots) || slots.length === 0) return 'N/A';
-            return slots.map(slot => `${slot.start} - ${slot.end}`).join(', ');
-        };
-
-        // Get room data for email
-        const Room = (await import('../room/room.model.js')).default;
-        const room = await Room.findById(roomId);
-
-        // Get promo code data if applied
-        let promoCodeData = null;
-        if (appliedPromo) {
-            const PromoCode = (await import('../promo_code/promo_code.model.js')).default;
-            const promo = await PromoCode.findById(appliedPromo);
-            promoCodeData = promo?.code || null;
-        }
-
-        // Calculate original amount for promo code savings display
-        let originalAmount = null;
-        let savings = 'N/A';
-        if (appliedPromo) {
-            const pricePerSlot = (service.pricePerSlot || 0) + 1; // Add $1 to match frontend display
-            originalAmount = pricePerSlot * timeSlots.length * numberOfPeople;
-            savings = (originalAmount - total).toFixed(2);
-        }
-
-        const emailHtml = bookingConfirmedTemplate({
-            name: `${user.firstName} ${user.lastName}`,
-            email: user.email,
-            category: service?.category?.name || 'N/A',
-            room: room?.title || room?.name || 'N/A',
-            service: service?.name || 'N/A',
-            time: formatTimeSlots(timeSlots),
-            bookingId: booking._id,
-            date: formatDate(booking.date),
-            total: total.toFixed(2),
-            promoCode: promoCodeData,
-            originalAmount: originalAmount?.toFixed(2) || 'N/A',
-            savings: savings
-        });
-
-        const emailResult = await emailService.sendEmailWithRetry({
-            to: user.email,
-            subject: 'Booking Confirmed - Payment Required | Toby',
-            html: emailHtml,
-            priority: 'high'
-        });
-
-        if (emailResult.success) {
-            booking.confirmationEmailSentAt = new Date();
-            booking.confirmationEmailMessageId = emailResult.messageId;
-            
-            // Update promo code email tracking status if promo code was used
-            if (appliedPromo) {
-                booking.promoCodeEmailStatus = 'sent';
-                booking.promoCodeEmailSentAt = new Date();
-                booking.promoCodeEmailMessageId = emailResult.messageId;
-            }
-            
-            await booking.save();
-            console.log(`✅ Booking confirmation email sent for booking ${booking._id} to ${user.email}`);
-        } else {
-            console.error(`❌ Failed to send booking confirmation email for booking ${booking._id}:`, emailResult.error);
-        }
-    } catch (error) {
-        console.error('❌ Error sending booking confirmation email:', error.message);
-        // Don't fail booking creation if email fails
-    }
+    // Note: No email sent here since booking is not confirmed until payment success
+    // Confirmation email will be sent from webhook after successful payment
 
     return booking;
 };
@@ -345,8 +264,8 @@ export const updateBooking = async (id, status, reason = null) => {
 
     // Optionally, update the status and reason if needed
     booking.status = status;
-    if (reason) {
-        booking.holdReleaseReason = reason;
+    if (reason && status === 'cancelled') {
+        booking.cancelledAt = new Date();
     }
     await booking.save();
 
@@ -457,14 +376,14 @@ export const checkAvailabilityService = async (date, serviceId, roomId) => {
     const endOfDay = new Date(date);
     endOfDay.setHours(23, 59, 59, 999);
 
-    // Check for bookings that block slots (only confirmed and hold bookings)
+    // Check for bookings that block slots (only confirmed bookings)
     const existingBookings = await Booking.find({
         date: { $gte: startOfDay, $lte: endOfDay },
         room: roomId,
-        status: { $in: ['confirmed', 'hold'] } // Only confirmed and hold bookings block slots
+        status: 'confirmed' // Only confirmed bookings block slots
     });
 
-    // Only confirmed and hold bookings block slots
+    // Only confirmed bookings block slots
     const validBookings = existingBookings;
 
     if (validBookings.length === 0) {
@@ -489,26 +408,23 @@ export const checkAvailabilityService = async (date, serviceId, roomId) => {
     return { available: true, slots: availableSlots };
 };
 
-// Cleanup system for failed payment bookings
-export const cleanupFailedPaymentBookings = async () => {
+// Cleanup system for failed payments (no holds to clean up anymore)
+export const cleanupExpiredHoldsAndFailedPayments = async () => {
     try {
         const now = new Date();
-        const timeoutMinutes = 15; // 15 minutes timeout for payment
-        const timeoutDate = new Date(now.getTime() - timeoutMinutes * 60 * 1000);
 
-        // Find bookings that are confirmed but payment failed or timed out
-        const failedBookings = await Booking.find({
-            status: 'confirmed',
+        // Cleanup pending bookings with failed payments (backup cleanup)
+        const failedPayments = await Booking.find({
+            status: 'pending',
             paymentStatus: 'pending',
-            createdAt: { $lt: timeoutDate }
+            createdAt: { $lt: new Date(now.getTime() - 30 * 60 * 1000) } // 30 minutes ago
         });
 
-        if (failedBookings.length > 0) {
-            console.log(`🧹 Cleaning up ${failedBookings.length} failed payment bookings`);
+        if (failedPayments.length > 0) {
+            console.log(`🧹 Cleaning up ${failedPayments.length} failed payment bookings`);
             
-            // Update failed bookings to cancelled status
             await Booking.updateMany(
-                { _id: { $in: failedBookings.map(b => b._id) } },
+                { _id: { $in: failedPayments.map(b => b._id) } },
                 { 
                     status: 'cancelled',
                     paymentStatus: 'failed',
@@ -516,9 +432,11 @@ export const cleanupFailedPaymentBookings = async () => {
                 }
             );
 
-            console.log(`✅ Cleaned up ${failedBookings.length} failed payment bookings`);
-        } else {
-            console.log('ℹ️ No failed payment bookings to clean up');
+            console.log(`✅ Cleaned up ${failedPayments.length} failed payment bookings`);
+        }
+
+        if (failedPayments.length === 0) {
+            console.log('ℹ️ No failed payments to clean up');
         }
     } catch (error) {
         console.error('❌ Error in cleanup function:', error.message);
